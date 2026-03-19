@@ -1,0 +1,38 @@
+{
+  "name": "photomagic-studio",
+  "version": "0.1.0",
+  "description": "一站式智能图片处理平台",
+  "main": "index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "echo '启动开发服务器'",
+    "build": "echo '构建项目'",
+    "test": "echo '运行测试'",
+    "lint": "echo '代码检查'",
+    "format": "echo '代码格式化'",
+    "deploy": "echo '部署项目'"
+  },
+  "keywords": [
+    "photo-editing",
+    "ai",
+    "image-processing",
+    "background-removal",
+    "id-photo",
+    "photo-restoration"
+  ],
+  "author": "熊昆 <Xk455323041>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xk455323041/PhotoMagic-Studio-Project.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Xk455323041/PhotoMagic-Studio-Project/issues"
+  },
+  "homepage": "https://github.com/Xk455323041/PhotoMagic-Studio-Project#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
