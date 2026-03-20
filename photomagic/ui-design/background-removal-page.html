@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背景移除 - PhotoMagic Studio</title>
+    <link rel="stylesheet" href="design-system.css">
+    <style>
+        /* 页面专用样式 */
+        .page-background-removal {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--color-gray-50) 0%, white 100%);
+        }
+        
+        /* 面包屑导航 */
+        .breadcrumb {
+            padding: var(--space-4) 0;
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-600);
+        }
+        
+        .breadcrumb a {
+            color: var(--color-brand-600);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .breadcrumb .separator {
+            margin: 0 var(--space-2);
+            color: var(--color-gray-400);
+        }
+        
+        .breadcrumb .current {
+            color: var(--color-gray-700);
+            font-weight: 500;
+        }
+        
+        /* 页面标题 */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-title {
+            font-size: var(--font-size-4xl);
+            font-weight: 700;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+        
+        .page-subtitle {
+            font-size: var(--font-size-lg);
+            color: var(--color-gray-600);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* 上传区域 */
+        .upload-section {
+            max-width: 800px;
+            margin: 0 auto var(--space-8);
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--color-gray-300);
+            border-radius: var(--radius-lg);
+            padding: var(--space-12) var(--space-6);
+            text-align: center;
+            background: white;
+            transition: all var(--transition-base);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+            transform: scale(1.02);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--color-brand-500);
+            margin-bottom: var(--space-4);
+        }
+        
+        .upload-text {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            margin-bottom: var(--space-2);
+            color: var(--color-gray-700);
+        }
+        
+        .upload-hint {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-600);
+            margin-bottom: var(--space-4);
+        }
+        
+        .upload-formats {
+            font-size: var(--font-size-xs);
+            color: var(--color-gray-500);
+        }
+        
+        .upload-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        /* 参数设置区域 */
+        .parameters-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .parameters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+            padding-bottom: var(--space-3);
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .parameters-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .parameters-toggle {
+            background: none;
+            border: none;
+            font-size: var(--font-size-sm);
+            color: var(--color-brand-600);
+            cursor: pointer;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+        
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--space-6);
+        }
+        
+        .parameter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+        
+        .parameter-label {
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-gray-700);
+        }
+        
+        .parameter-options {
+            display: flex;
+            gap: var(--space-3);
+            flex-wrap: wrap;
+        }
+        
+        .parameter-option {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            cursor: pointer;
+        }
+        
+        .parameter-option input[type="radio"] {
+            margin: 0;
+        }
+        
+        .parameter-slider {
+            width: 100%;
+            margin-top: var(--space-2);
+        }
+        
+        /* 预览区域 */
+        .preview-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+            padding-bottom: var(--space-3);
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .preview-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .preview-controls {
+            display: flex;
+            gap: var(--space-4);
+            align-items: center;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-6);
+        }
+        
+        @media (max-width: 768px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .preview-box {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+        
+        .preview-label {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-gray-700);
+            text-align: center;
+        }
+        
+        .preview-image {
+            width: 100%;
+            height: 300px;
+            background: var(--color-gray-100);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-gray-400);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .preview-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .preview-placeholder {
+            text-align: center;
+            padding: var(--space-4);
+        }
+        
+        .preview-placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: var(--space-2);
+            color: var(--color-gray-400);
+        }
+        
+        /* 操作按钮区域 */
+        .actions-section {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-4);
+            margin-bottom: var(--space-8);
+            flex-wrap: wrap;
+        }
+        
+        /* 批量处理区域 */
+        .batch-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+            padding-bottom: var(--space-3);
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .batch-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+        
+        .batch-item {
+            position: relative;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            aspect-ratio: 1/1;
+            background: var(--color-gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .batch-item img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .batch-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--color-error-500);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .batch-add {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border-primary);
+            border-radius: var(--radius-md);
+            aspect-ratio: 1/1;
+            background: var(--color-gray-50);
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .batch-add:hover {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+        }
+        
+        .batch-add-icon {
+            font-size: 2rem;
+            color: var(--color-gray-500);
+        }
+        
+        /* 帮助区域 */
+        .help-section {
+            background: var(--color-gray-50);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .help-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .help-icon {
+            font-size: 1.5rem;
+        }
+        
+        .help-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-gray-800);
+        }
+        
+        .help-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+        
+        .help-item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+        }
+        
+        .help-item-icon {
+            color: var(--color-success-500);
+            font-size: 1rem;
+            margin-top: 2px;
+        }
+        
+        .help-item-text {
+            color: var(--color-gray-700);
+            font-size: var(--font-size-sm);
+        }
+        
+        /* 动画 */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn var(--transition-base);
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: var(--font-size-3xl);
+            }
+            
+            .preview-image {
+                height: 250px;
+            }
+            
+            .actions-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .actions-section .btn {
+                width: 100%;
+            }
+        }
+        
+        /* 加载状态 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--color-gray-300);
+            border-top-color: var(--color-brand-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* 结果展示 */
+        .result-section {
+            background: linear-gradient(135deg, var(--color-success-50) 0%, white 100%);
+            border-radius: var(--radius-lg);
+            padding: var(--space-8);
+            margin-bottom: var(--space-8);
+            border: 1px solid var(--color-success-200);
+            text-align: center;
+        }
+        
+        .result-icon {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+        }
+        
+        .result-title {
+            font-size: var(--font-size-2xl);
+            font-weight: 600;
+            color: var(--color-success-700);
+            margin-bottom: var(--space-2);
+        }
+        
+        .result-message {
+            color: var(--color-gray-700);
+            margin-bottom: var(--space-6);
+        }
+        
+        .result-actions {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-4);
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-background-removal">
+        <div class="container">
+            <!-- 面包屑导航 -->
+            <nav class="breadcrumb">
+                <a href="#">首页</a>
+                <span class="separator">/</span>
+                <a href="#">功能</a>
+                <span class="separator">/</span>
+                <span class="current">背景移除</span>
+            </nav>
+            
+            <!-- 页面标题 -->
+            <header class="page-header">
+                <h1 class="page-title">背景移除</h1>
+                <p class="page-subtitle">快速移除图片背景，生成透明PNG。支持复杂背景和毛发边缘处理。</p>
+            </header>
+            
+            <!-- 上传区域 -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">🖼️</div>
+                    <div class="upload-text">拖拽图片到这里或点击选择文件</div>
+                    <div class="upload-hint">支持单张图片上传，最大10MB</div>
+                    <div class="upload-formats">支持格式: JPG, PNG, WebP</div>
+                    <input type="file" id="fileInput" class="upload-input" accept=".jpg,.jpeg,.png,.webp">
+                    
+                    <!-- 加载状态 -->
+                    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+                
+                <!-- 文件信息 -->
+                <div id="fileInfo" style="display: none;">
+                    <div style="display: flex; align-items: center; gap: var(--space-4); background: white; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                        <div style="width: 80px; height: 80px; background: var(--color-gray-100); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;">
+                            <img id="previewThumbnail" src="" alt="预览" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--color-gray-900);" id="fileName"></div>
+                            <div style="font-size: var(--font-size-sm); color: var(--color-gray-600);" id="fileSize"></div>
+                            <div style="font-size: var(--font-size-xs); color: var(--color-gray-500);" id="fileDimensions"></div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="removeFile">移除</button>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 参数设置区域 -->
+            <section class="parameters-section">
+                <div class="parameters-header">
+                    <h2 class="parameters-title">处理参数设置</h2>
+                    <button class="parameters-toggle" id="toggleAdvanced">高级选项 ▼</button>
+                </div>
+                
+                <div class="parameters-grid">
+                    <!-- 输出格式 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">输出格式</label>
+                        <div class="parameter-options">
+                            <label class="parameter-option">
+                                <input type="radio" name="format" value="png" checked>
+                                <span>PNG</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="format" value="jpg">
+                                <span>JPG</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="format" value="webp">
+                                <span>WebP</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 背景颜色 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">背景颜色</label>
+                        <div class="parameter-options">
+                            <label class="parameter-option">
+                                <input type="radio" name="background" value="transparent" checked>
+                                <span>透明</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="background" value="white">
+                                <span>白色</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="background" value="custom">
+                                <span>自定义</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 边缘优化 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">边缘优化</label>
+                        <div class="parameter-options">
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="auto" checked>
+                                <span>自动</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="low">
+                                <span>低</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="medium">
+                                <span>中</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="high">
+                                <span>高</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 高级选项 (默认隐藏) -->
+                    <div id="advancedOptions" style="display: none; grid-column: 1 / -1;">
+                        <div style="background: var(--color-gray-50); padding: var(--space-4); border-radius: var(--radius-md);">
+                            <h3 style="font-size: var(--font-size-lg); font-weight: 600; margin-bottom: var(--space-3);">高级参数</h3>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4);">
+                                <!-- 输出质量 -->
+                                <div class="parameter-group">
+                                    <label class="parameter-label">输出质量</label>
+                                    <input type="range" class="parameter-slider" id="qualitySlider" min="1" max="100" value="85">
+                                    <div style="display: flex; justify-content: space-between; font-size: var(--font-size-xs); color: var(--color-gray-600);">
+                                        <span>低</span>
+                                        <span id="qualityValue">85%</span>
+                                        <span>高</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 分辨率保持 -->
+                                <div class="parameter-group">
+                                    <label class="parameter-label">分辨率保持</label>
+                                    <div class="parameter-options">
+                                        <label class="parameter-option">
+                                            <input type="radio" name="resolution" value="original" checked>
+                                            <span>保持原尺寸</span>
+                                        </label>
+                                        <label class="parameter-option">
+                                            <input type="radio" name="resolution" value="custom">
+                                            <span>自定义</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- 处理模式 -->
+                                <div class="parameter-group">
+                                    <label class="parameter-label">处理模式</label>
+                                    <div class="parameter-options">
+                                        <label class="parameter-option">
+                                            <input type="radio" name="mode" value="fast" checked>
+                                            <span>快速模式</span>
+                                        </label>
+                                        <label class="parameter-option">
+                                            <input type="radio" name="mode" value="quality">
+                                            <span>高质量模式</span>
+                                        </label>
+                                        <label class="parameter-option">
+                                            <input type="radio" name="mode" value="extreme">
+                                            <span>极致模式</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 预览区域 -->
+            <section class="preview-section">
+                <div class="preview-header">
+                    <h2 class="preview-title">预览对比</h2>
+                    <div class="preview-controls">
+                        <label style="display: flex; align-items: center; gap: var(--space-2);">
+                            <input type="checkbox" id="syncZoom">
+                            <span style="font-size: var(--font-size-sm);">同步缩放</span>
+                        </label>
+                        <button class="btn btn-secondary btn-sm" id="resetZoom">重置缩放</button>
+                    </div>
+                </div>
+                
+                <div class="preview-grid">
+                    <!-- 原图预览 -->
+                    <div class="preview-box">
+                        <div class="preview-label">原图</div>
+                        <div class="preview-image" id="originalPreview">
+                            <div class="preview-placeholder">
+                                <div class="preview-placeholder-icon">🖼️</div>
+                                <div>请先上传图片</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: var(--space-2);">
+                            <button class="btn btn-secondary btn-sm" id="zoomInOriginal">放大</button>
+                            <button class="btn btn-secondary btn-sm" id="zoomOutOriginal">缩小</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 结果预览 -->
+                    <div class="preview-box">
+                        <div class="preview-label">结果</div>
+                        <div class="preview-image" id="resultPreview">
+                            <div class="preview-placeholder">
+                                <div class="preview-placeholder-icon">✨</div>
+                                <div>处理后将显示结果</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: var(--space-2);">
+                            <button class="btn btn-secondary btn-sm" id="zoomInResult">放大</button>
+                            <button class="btn btn-secondary btn-sm" id="zoomOutResult">缩小</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 背景切换 -->
+                <div style="display: flex; justify-content: center; gap: var(--space-4); margin-top: var(--space-4);">
+                    <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
+                        <input type="radio" name="previewBackground" value="white" checked>
+                        <span style="font-size: var(--font-size-sm);">白色背景</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
+                        <input type="radio" name="previewBackground" value="gray">
+                        <span style="font-size: var(--font-size-sm);">灰色背景</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
+                        <input type="radio" name="previewBackground" value="checker">
+                        <span style="font-size: var(--font-size-sm);">棋盘背景</span>
+                    </label>
+                </div>
+            </section>
+            
+            <!-- 操作按钮区域 -->
+            <section class="actions-section">
+                <button class="btn btn-primary btn-lg" id="processButton" disabled>
+                    <span id="processText">开始处理</span>
+                    <span class="loading" id="processLoading" style="display: none;"></span>
+                </button>
+                <button class="btn btn-secondary btn-lg" id="downloadButton" disabled>下载PNG</button>
+                <button class="btn btn-ghost btn-lg" id="resetButton">重新开始</button>
+            </section>
+            
+            <!-- 批量处理区域 -->
+            <section class="batch-section">
+                <div class="batch-header">
+                    <h2 class="batch-title">批量处理</h2>
+                    <span style="font-size: var(--font-size-sm); color: var(--color-gray-600);">最多支持10张图片</span>
+                </div>
+                
+                <div class="batch-grid" id="batchGrid">
+                    <!-- 批量处理项目将通过JavaScript动态添加 -->
+                    <div class="batch-add" id="addBatchItem">
+                        <div class="batch-add-icon">+</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: center; gap: var(--space-4); margin-top: var(--space-4);">
+                    <button class="btn btn-primary" id="batchProcessButton" disabled>批量处理 (0)</button>
+                    <button class="btn btn-secondary" id="clearBatchButton">清空列表</button>
+                </div>
+            </section>
+            
+            <!-- 帮助区域 -->
+            <section class="help-section">
+                <div class="help-header">
+                    <div class="help-icon">💡</div>
+                    <h3 class="help-title">使用提示</h3>
+                </div>
+                
+                <ul class="help-list">
+                    <li class="help-item">
+                        <div class="help-item-icon">✓</div>
+                        <div class="help-item-text">选择清晰、高对比度的图片效果更好</div>
+                    </li>
+                    <li class="help-item">
+                        <div class="help-item-icon">✓</div>
+                        <div class="help-item-text">对于人像图片，启用"发丝细节"选项</div>
+                    </li>
+                    <li class="help-item">
+                        <div class="help-item-icon">✓</div>
+                        <div class="help-item-text">复杂背景可能需要使用"高级边缘优化"</div>
+                    </li>
+                    <li class="help-item">
+                        <div class="help-item-icon">✗</div>
+                        <div class="help-item-text">避免使用模糊、低分辨率的图片</div>
+                    </li>
+                </ul>
+            </section>
+        </div>
+    </div>
+    
+    <script>
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const previewThumbnail = document.getElementById('previewThumbnail');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileDimensions = document.getElementById('fileDimensions');
+        const removeFileButton = document.getElementById('removeFile');
+        const processButton = document.getElementById('processButton');
+        const processText = document.getElementById('processText');
+        const processLoading = document.getElementById('processLoading');
+        const downloadButton = document.getElementById('downloadButton');
+        const resetButton = document.getElementById('resetButton');
+        const toggleAdvancedButton = document.getElementById('toggleAdvanced');
+        const advancedOptions = document.getElementById('advancedOptions');
+        const qualitySlider = document.getElementById('qualitySlider');
+        const qualityValue = document.getElementById('qualityValue');
+        const originalPreview = document.getElementById('originalPreview');
+        const resultPreview = document.getElementById('resultPreview');
+        const syncZoomCheckbox = document.getElementById('syncZoom');
+        const resetZoomButton = document.getElementById('resetZoom');
+        const zoomInOriginalButton = document.getElementById('zoomInOriginal');
+        const zoomOutOriginalButton = document.getElementById('zoomOutOriginal');
+        const zoomInResultButton = document.getElementById('zoomInResult');
+        const zoomOutResultButton = document.getElementById('zoomOutResult');
+        const addBatchItemButton = document.getElementById('addBatchItem');
+        const batchGrid = document.getElementById('batchGrid');
+        const batchProcessButton = document.getElementById('batchProcessButton');
+        const clearBatchButton = document.getElementById('clearBatchButton');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        
+        // 状态变量
+        let currentFile = null;
+        let processing = false;
+        let batchFiles = [];
+        let zoomLevels = {
+            original: 1.0,
+            result: 1.0
+        };
+        
+        // 初始化事件监听器
+        function initEventListeners() {
+            // 上传区域点击事件
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // 文件选择事件
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖拽事件
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelect();
+                }
+            });
+            
+            // 移除文件按钮
+            removeFileButton.addEventListener('click', resetFile);
+            
+            // 处理按钮
+            processButton.addEventListener('click', processImage);
+            
+            // 下载按钮
+            downloadButton.addEventListener('click', downloadResult);
+            
+            // 重置按钮
+            resetButton.addEventListener('click', resetAll);
+            
+            // 高级选项切换
+            toggleAdvancedButton.addEventListener('click', toggleAdvancedOptions);
+            
+            // 质量滑块
+            qualitySlider.addEventListener('input', updateQualityValue);
+            
+            // 缩放控制
+            zoomInOriginalButton.addEventListener('click', () => adjustZoom('original', 'in'));
+            zoomOutOriginalButton.addEventListener('click', () => adjustZoom('original', 'out'));
+            zoomInResultButton.addEventListener('click', () => adjustZoom('result', 'in'));
+            zoomOutResultButton.addEventListener('click', () => adjustZoom('result', 'out'));
+            resetZoomButton.addEventListener('click', resetZoom);
+            
+            // 批量处理
+            addBatchItemButton.addEventListener('click', addBatchItem);
+            batchProcessButton.addEventListener('click', processBatch);
+            clearBatchButton.addEventListener('click', clearBatch);
+        }
+        
+        // 处理文件选择
+
+        function handleFileSelect() {
+            if (fileInput.files.length === 0) return;
+            
+            const file = fileInput.files[0];
+            
+            // 验证文件类型
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                alert('不支持的文件格式。请选择 JPG、PNG 或 WebP 格式的图片。');
+                return;
+            }
+            
+            // 验证文件大小 (10MB)
+
+            const maxSize = 10 * 1024 * 1024; // 10MB
+
+            if (file.size > maxSize) {
+                alert('文件大小超过 10MB 限制。请选择较小的图片。');
+                return;
+            }
+            
+            currentFile = file;
+            
+            // 显示文件信息
+
+            const fileURL = URL.createObjectURL(file);
+            
+            // 更新预览缩略图
+
+            previewThumbnail.src = fileURL;
+            previewThumbnail.onload = () => {
+                URL.revokeObjectURL(fileURL);
+            };
+            
+            // 更新文件信息
+
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            // 获取图片尺寸
+
+            const img = new Image();
+            img.onload = () => {
+                fileDimensions.textContent = `${img.width} × ${img.height} 像素`;
+                
+                // 显示原图预览
+
+                showOriginalPreview(fileURL, img.width, img.height);
+            };
+            img.src = fileURL;
+            
+            // 显示文件信息区域
+
+            fileInfo.style.display = 'block';
+            
+            // 启用处理按钮
+
+            processButton.disabled = false;
+            
+            // 禁用下载按钮 (等待处理完成)
+
+            downloadButton.disabled = true;
+            
+            // 更新批量处理按钮
+
+            updateBatchProcessButton();
+        }
+        
+        // 显示原图预览
+
+        function showOriginalPreview(url, width, height) {
+            originalPreview.innerHTML = '';
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = '原图预览';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
+            
+            originalPreview.appendChild(img);
+            
+            // 重置缩放级别
+
+            zoomLevels.original = 1.0;
+            updateImageZoom('original', zoomLevels.original);
+        }
+        
+        // 格式化文件大小
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 重置文件
+
+        function resetFile() {
+            currentFile = null;
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+            originalPreview.innerHTML = `
+                <div class="preview-placeholder">
+                    <div class="preview-placeholder-icon">🖼️</div>
+                    <div>请先上传图片</div>
+                </div>
+            `;
+            resultPreview.innerHTML = `
+                <div class="preview-placeholder">
+                    <div class="preview-placeholder-icon">✨</div>
+                    <div>处理后将显示结果</div>
+                </div>
+            `;
+            processButton.disabled = true;
+            downloadButton.disabled = true;
+            resetZoom();
+        }
+        
+        // 处理图片
+
+        function processImage() {
+            if (!currentFile || processing) return;
+            
+            processing = true;
+            
+            // 显示加载状态
+
+            processText.textContent = '处理中...';
+            processLoading.style.display = 'inline-block';
+            processButton.disabled = true;
+            loadingOverlay.style.display = 'flex';
+            
+            // 模拟处理过程 (实际项目中这里会调用API)
+
+            setTimeout(() => {
+                // 模拟处理完成
+
+                processing = false;
+                
+                // 更新按钮状态
+
+                processText.textContent = '处理完成';
+                processLoading.style.display = 'none';
+                downloadButton.disabled = false

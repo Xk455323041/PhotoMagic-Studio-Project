@@ -1,0 +1,58 @@
+# OpenClaw相关文件
+.openclaw/
+.clawhub/
+skills/
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*~
+
+# 环境变量
+.env
+.env.local
+.env.development
+.env.production
+
+# 依赖目录
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# 构建输出
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 测试覆盖
+coverage/
+*.lcov
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 其他
+*.zip
+*.tar.gz
+*.rar

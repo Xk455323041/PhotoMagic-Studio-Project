@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老照片修复 - PhotoMagic Studio</title>
+    <link rel="stylesheet" href="design-system.css">
+    <style>
+        /* 页面专用样式 */
+        .page-restoration {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--color-gray-50) 0%, white 100%);
+        }
+        
+        /* 面包屑导航 */
+        .breadcrumb {
+            padding: var(--space-4) 0;
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-600);
+        }
+        
+        .breadcrumb a {
+            color: var(--color-brand-600);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .breadcrumb .separator {
+            margin: 0 var(--space-2);
+            color: var(--color-gray-400);
+        }
+        
+        .breadcrumb .current {
+            color: var(--color-gray-700);
+            font-weight: 500;
+        }
+        
+        /* 页面标题 */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-title {
+            font-size: var(--font-size-4xl);
+            font-weight: 700;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+        
+        .page-subtitle {
+            font-size: var(--font-size-lg);
+            color: var(--color-gray-600);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* 主工作区 */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-8);
+            margin-bottom: var(--space-8);
+        }
+        
+        @media (max-width: 1024px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 图片对比区域 */
+        .comparison-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            grid-column: 1 / -1;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .section-icon {
+            font-size: 1.5rem;
+        }
+        
+        .section-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .comparison-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: var(--color-gray-100);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: var(--space-4);
+        }
+        
+        .comparison-slider {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 4px;
+            height: 100%;
+            background: var(--color-brand-500);
+            cursor: ew-resize;
+            z-index: 10;
+        }
+        
+        .comparison-slider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: var(--color-brand-500);
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .comparison-slider::after {
+            content: '↔';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .comparison-before,
+        .comparison-after {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .comparison-before {
+            left: 0;
+        }
+        
+        .comparison-after {
+            right: 0;
+        }
+        
+        .comparison-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .comparison-label {
+            position: absolute;
+            top: var(--space-4);
+            padding: var(--space-2) var(--space-3);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+        }
+        
+        .comparison-before .comparison-label {
+            left: var(--space-4);
+        }
+        
+        .comparison-after .comparison-label {
+            right: var(--space-4);
+        }
+        
+        .comparison-controls {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-4);
+            align-items: center;
+        }
+        
+        .comparison-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        /* 修复工具区域 */
+        .tools-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .tools-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-primary);
+            margin-bottom: var(--space-4);
+        }
+        
+        .tools-tab {
+            padding: var(--space-3) var(--space-4);
+            background: none;
+            border: none;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-gray-600);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tools-tab:hover {
+            color: var(--color-gray-800);
+        }
+        
+        .tools-tab.active {
+            color: var(--color-brand-600);
+            border-bottom-color: var(--color-brand-600);
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-4);
+        }
+        
+        @media (max-width: 768px) {
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .tool-card {
+            background: var(--color-gray-50);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .tool-card:hover {
+            border-color: var(--color-brand-400);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .tool-card.active {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+        }
+        
+        .tool-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-2);
+        }
+        
+        .tool-icon {
+            font-size: 1.5rem;
+        }
+        
+        .tool-name {
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .tool-desc {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-600);
+            margin-bottom: var(--space-3);
+        }
+        
+        .tool-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+        
+        .tool-slider {
+            width: 100%;
+        }
+        
+        .tool-value {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--font-size-xs);
+            color: var(--color-gray-600);
+        }
+        
+        /* AI修复区域 */
+        .ai-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .ai-icon {
+            font-size: 1.5rem;
+        }
+        
+        .ai-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .ai-modes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+        
+        .ai-mode {
+            background: var(--color-gray-50);
+            border: 2px solid var(--color-gray-200);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .ai-mode:hover {
+            border-color: var(--color-brand-400);
+        }
+        
+        .ai-mode.selected {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+        }
+        
+        .ai-mode-icon {
+            font-size: 2rem;
+            margin-bottom: var(--space-1);
+        }
+        
+        .ai-mode-name {
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-1);
+        }
+        
+        .ai-mode-desc {
+            font-size: var(--font-size-xs);
+            color: var(--color-gray-600);
+        }
+        
+        .ai-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+        }
+        
+        @media (max-width: 768px) {
+            .ai-options {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .ai-option {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+        
+        .ai-option-label {
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-gray-700);
+        }
+        
+        .ai-option-control {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        /* 历史记录区域 */
+        .history-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            grid-column: 1 / -1;
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+        
+        .history-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: var(--space-3);
+            max-height: 300px;
+            overflow-y: auto;
+            padding: var(--space-2);
+        }
+        
+        .history-item {
+            position: relative;
+            aspect-ratio: 1/1;
+            border: 2px solid var(--color-gray-200);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .history-item:hover {
+            border-color: var(--color-brand-400);
+            transform: scale(1.05);
+        }
+        
+        .history-item.selected {
+            border-color: var(--color-brand-500);
+            box-shadow: 0 0 0 2px var(--color-brand-200);
+        }
+        
+        .history-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .history-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: var(--font-size-xs);
+            padding: var(--space-1) var(--space-2);
+            text-align: center;
+        }
+        
+        /* 操作按钮区域 */
+        .actions-section {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-4);
+            margin-bottom: var(--space-8);
+            flex-wrap: wrap;
+        }
+        
+        /* 上传区域 */
+        .upload-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+            grid-column: 1 / -1;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--color-gray-300);
+            border-radius: var(--radius-lg);
+            padding: var(--space-12) var(--space-6);
+            text-align: center;
+            background: var(--color-gray-50);
+            transition: all var(--transition-base);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+            transform: scale(1.02);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--color-brand-500);
+            margin-bottom: var(--space-4);
+        }
+        
+        .upload-text {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            margin-bottom: var(--space-2);
+            color: var(--color-gray-700);
+        }
+        
+        .upload-hint {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-600);
+            margin-bottom: var(--space-4);
+        }
+        
+        .upload-formats {
+            font-size: var(--font-size-xs);
+            color: var(--color-gray-500);
+        }
+        
+        .upload-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        /* 帮助区域 */
+        .help-section {
+            background: var(--color-gray-50);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            border: 1px solid var(--border-primary);
+            margin-bottom: var(--space-8);
+        }
+        
+        .help-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .help-icon {
+            font-size: 1.5rem;
+        }
+        
+        .help-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-gray-800);
+        }
+        
+        .help-tips {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+        }
+        
+        @media (max-width: 768px) {
+            .help-tips {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .help-tip {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .help-tip-title {
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+        
+        .help-tip-content {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-700);
+            line-height: 1.5;
+        }
+        
+        /* 加载状态 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--color-gray-300);
+            border-top-color: var(--color-brand-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* 进度指示器 */
+        .progress-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+            display: none;
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .progress-icon {
+            font-size: 1.5rem;
+        }
+        
+        .progress-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .progress-container {
+            margin-bottom: var(--space-4);
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--space-2);
+            font-size: var(--font-size-sm);
+        }
+        
+        .progress-details {
+            font-size: var(--font-size-xs);
+            color: var(--color-gray-600);
+            margin-top: var(--space-2);
+        }
+        
+        /* 动画 */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn var(--transition-base);
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: var(--font-size-3xl);
+            }
+            
+            .actions-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .actions-section .btn {
+                width: 100%;
+            }
+            
+            .comparison-container {
+                height: 300px;
+            }
+            
+            .history-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-restoration">
+        <div class="container">
+            <!-- 面包屑导航 -->
+            <nav class="breadcrumb">
+                <a href="#">首页</a>
+                <span class="separator">/</span>
+                <a href="#">功能</a>
+                <span class="separator">/</span>
+                <span class="current">老照片修复</span>
+            </nav>
+            
+            <!-- 页面标题 -->
+            <header class="page-header">
+                <h1 class="page-title">老照片修复</h1>
+                <p class="page-subtitle">AI智能修复老照片，去除折痕、划痕、污渍，恢复色彩和清晰度</p>
+            </header>
+            
+            <!-- 上传区域 -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">🕰️</div>
+                    <div class="upload-text">拖拽老照片到这里或点击选择文件</div>
+                    <div class="upload-hint">支持扫描件、翻拍照、破损照片修复</div>
+                    <div class="upload-formats">支持格式: JPG, PNG, TIFF, BMP</div>
+                    <input type="file" id="fileInput" class="upload-input" accept=".jpg,.jpeg,.png,.tiff,.bmp">
+                    
+                    <!-- 加载状态 -->
+                    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 进度指示器 -->
+            <section class="progress-section" id="progressSection">
+                <div class="progress-header">
+                    <div class="progress-icon">⏳</div>
+                    <h2 class="progress-title">修复进度</h2>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>AI分析处理</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-details" id="progressDetails">
+                        正在分析照片损伤情况...
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 图片对比区域 -->
+            <section class="comparison-section" id="comparisonSection" style="display: none;">
+                <div class="section-header">
+                    <div class="section-icon">👁️</div>
+                    <h2 class="section-title">修复效果对比</h2>
+                </div>
+                
+                <div class="comparison-container" id="comparisonContainer">
+                    <div class="comparison-slider" id="comparisonSlider"></div>
+                    
+                    <div class="comparison-before">
+                        <img class="comparison-image" id="beforeImage" alt="修复前">
+                        <div class="comparison-label">修复前</div>
+                    </div>
+                    
+                    <div class="comparison-after">
+                        <img class="comparison-image" id="afterImage" alt="修复后">
+                        <div class="comparison-label">修复后</div>
+                    </div>
+                </div>
+                
+                <div class="comparison-controls">
+                    <div class="comparison-toggle">
+                        <label>
+                            <input type="checkbox" id="autoCompare" checked>
+                            <span>自动对比</span>
+                        </label>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" id="resetComparison">重置对比</button>
+                </div>
+            </section>
+            
+            <!-- 主工作区 -->
+            <div class="workspace" id="workspace" style="display: none;">
+                <!-- 修复工具区域 -->
+                <section class="tools-section">
+                    <div class="section-header">
+                        <div class="section-icon">🔧</div>
+                        <h2 class="section-title">修复工具</h2>
+                    </div>
+                    
+                    <div class="tools-tabs">
+                        <button class="tools-tab active" data-tab="basic">基础修复</button>
+                        <button class="tools-tab" data-tab="advanced">高级修复</button>
+                        <button class="tools-tab" data-tab="color">色彩修复</button>
+                    </div>
+                    
+                    <div class="tools-grid" id="toolsGrid">
+                        <!-- 基础修复工具 -->
+                        <div class="tool-card active" data-tool="scratch">
+                            <div class="tool-header">
+                                <div class="tool-icon">✏️</div>
+                                <div class="tool-name">划痕修复</div>
+                            </div>
+                            <div class="tool-desc">自动检测并修复照片划痕</div>
+                            <div class="tool-controls">
+                                <input type="range" class="tool-slider" id="scratchSlider" min="0" max="100" value="50">
+                                <div class="tool-value">
+                                    <span>轻微</span>
+                                    <span id="scratchValue">50%</span>
+                                    <span>深度</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-card" data-tool="stain">
+                            <div class="tool-header">
+                                <div class="tool-icon">💧</div>
+                                <div class="tool-name">污渍去除</div>
+                            </div>
+                            <div class="tool-desc">去除水渍、霉斑等污渍</div>
+                            <div class="tool-controls">
+                                <input type="range" class="tool-slider" id="stainSlider" min="0" max="100" value="40">
+                                <div class="tool-value">
+                                    <span>小面积</span>
+                                    <span id="stainValue">40%</span>
+                                    <span>大面积</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-card" data-tool="crease">
+                            <div class="tool-header">
+                                <div class="tool-icon">📄</div>
+                                <div class="tool-name">折痕修复</div>
+                            </div>
+                            <div class="tool-desc">修复照片折叠痕迹</div>
+                            <div class="tool-controls">
+                                <input type="range" class="tool-slider" id="creaseSlider" min="0" max="100" value="60">
+                                <div class="tool-value">
+                                    <span>浅折痕</span>
+                                    <span id="creaseValue">60%</span>
+                                    <span>深折痕</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-card" data-tool="noise">
+                            <div class="tool-header">
+                                <div class="tool-icon">🌫️</div>
+                                <div class="tool-name">噪点去除</div>
+                            </div>
+                            <div class="tool-desc">减少照片颗粒感和噪点</div>
+                            <div class="tool-controls">
+                                <input type="range" class="tool-slider" id="noiseSlider" min="0" max="100" value="30">
+                                <div class="tool-value">
+                                    <span>保留细节</span>
+                                    <span id="noiseValue">30%</span>
+                                    <span>强降噪</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- AI修复区域 -->
+                <section class="ai-section">
+                    <div class="ai-header">
+                        <div class="ai-icon">🤖</div>
+                        <h2 class="ai-title">AI智能修复</h2>
+                    </div>
+                    
+                    <div class="ai-modes">
+                        <div class="ai-mode selected" data-mode="auto">
+                            <div class="ai-mode-icon">⚡</div>
+                            <div class="ai-mode-name">一键修复</div>
+                            <div class="ai-mode-desc">AI自动分析并修复</div>
+                        </div>
+                        <div class="ai-mode" data-mode="manual">
+                            <div class="ai-mode-icon">👋</div>
+                            <div class="ai-mode-name">手动修复</div>
+                            <div class="ai-mode-desc">自定义修复参数</div>
+                        </div>
+                        <div class="ai-mode" data-mode="enhance">
+                            <div class="ai-mode-icon">✨</div>
+                            <div class="ai-mode-name">增强修复</div>
+                            <div class="ai-mode-desc">高质量细节恢复</div>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-options">
+                        <div class="ai-option">
+                            <label class="ai-option-label">面部修复</label>
+                            <div class="ai-option-control">
+                                <label style="display: flex; align-items: center; gap: var(--space-1);">
+                                    <input type="checkbox" id="faceRepair" checked>
+                                    <span>启用面部增强</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-option">
+                            <label class="ai-option-label">色彩恢复</label>
+                            <div class="ai-option-control">
+                                <label style="display: flex; align-items: center; gap: var(--space-1);">
+                                    <input type="checkbox" id="colorRestore" checked>
+                                    <span>自动恢复色彩</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-option">
+                            <label class="ai-option-label">清晰度增强</label>
+                            <div class="ai-option-control">
+                                <input type="range" id="sharpnessSlider" min="0" max="100" value="50" style="flex: 1;">
+                                <span id="sharpnessValue">50%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-option">
+                            <label class="ai-option-label">对比度调整</label>
+                            <div class="ai-option-control">
+                                <input type="range" id="contrastSlider" min="-50" max="50" value="0" style="flex: 1;">
+                                <span id="contrastValue">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- 历史记录区域 -->
+            <section class="history-section" id="historySection" style="display: none;">
+                <div class="history-header">
+                    <h2 class="history-title">修复历史</h2>
+                    <button class="btn btn-secondary btn-sm" id="clearHistory">清空历史</button>
+                </div>
+                
+                <div class="history-grid" id="historyGrid">
+                    <!-- 历史记录将通过JavaScript动态添加 -->
+                </div>
+            </section>
+            
+            <!-- 操作按钮区域 -->
+            <section class="actions-section">
+                <button class="btn btn-primary btn-lg" id="repairButton" disabled>
+                    <span id="repairText">开始修复</span>
+                    <span class="loading" id="repairLoading" style="display: none;"></span>
+                </button>
+                <button class="btn btn-secondary btn-lg" id="downloadButton" disabled>下载修复版</button>
+                <button class="btn btn-success btn-lg" id="downloadOriginalButton" disabled>下载原图</button>
+                <button class="btn btn-ghost btn-lg" id="resetButton">重新开始</button>
+            </section>
+            
+            <!-- 帮助区域 -->
+            <section class="help-section">
+                <div class="help-header">
+                    <div class="help-icon">💡</div>
+                    <h3 class="help-title">修复指南</h3>
+                </div>
+                
+                <div class="help-tips">
+                    <div class="help-tip">
+                        <div class="help-tip-title">拍照建议</div>
+                        <div class="help-tip-content">
+                            • 在光线均匀的环境下拍摄<br>
+                            • 将照片平铺，避免反光和阴影<br>
+                            • 使用高分辨率拍摄，便于细节修复
+                        </div>
+                    </div>
+                    
+                    <div class="help-tip">
+                        <div class="help-tip-title">修复技巧</div>
+                        <div class="help-tip-content">
+                            • 严重破损的照片建议使用"增强修复"模式<br>
+                            • 轻微划痕使用"基础修复"即可<br>
+                            • 人像照片建议启用"面部修复"功能
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    
+    <script>
+        // 老照片修复页面交互脚本
+        // 初始化函数将在页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('老照片修复页面已加载');
+            
+            // 这里可以添加页面交互逻辑
+            // 由于时间关系，这里只提供页面结构，交互逻辑可以后续添加
+            
+            // 简单的页面状态更新
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    // 显示修复按钮
+                    document.getElementById('repairButton').disabled = false;
+                    
+                    // 显示工作区
+                    document.getElementById('workspace').style.display = 'grid';
+                    document.getElementById('comparisonSection').style.display = 'block';
+                    document.getElementById('historySection').style.display = 'block';
+                    document.getElementById('progressSection').style.display = 'block';
+                    
+                    // 更新进度显示
+                    simulateProgress();
+                }
+            });
+            
+            // 模拟进度更新
+            function simulateProgress() {
+                let progress = 0;
+                const progressBar = document.getElementById('progressBar');
+                const progressPercent = document.getElementById('progressPercent');
+                const progressDetails = document.getElementById('progressDetails');
+                
+                const interval = setInterval(() => {
+                    progress += 5;
+                    progressBar.style.width = progress + '%';
+                    progressPercent.textContent = progress + '%';
+                    
+                    // 更新进度描述
+                    if (progress < 30) {
+                        progressDetails.textContent = '正在分析照片损伤情况...';
+                    } else if (progress < 60) {
+                        progressDetails.textContent = '正在修复划痕和污渍...';
+                    } else if (progress < 90) {
+                        progressDetails.textContent = '正在恢复色彩和清晰度...';
+                    } else {
+                        progressDetails.textContent = '修复完成！';
+                        clearInterval(interval);
+                        
+                        // 启用下载按钮
+                        document.getElementById('downloadButton').disabled = false;
+                        document.getElementById('downloadOriginalButton').disabled = false;
+                    }
+                }, 200);
+            }
+            
+            // 修复按钮点击事件
+            document.getElementById('repairButton').addEventListener('click', function() {
+                const repairText = document.getElementById('repairText');
+                const repairLoading = document.getElementById('repairLoading');
+                
+                repairText.textContent = '修复中...';
+                repairLoading.style.display = 'inline-block';
+                this.disabled = true;
+                
+                // 模拟修复过程
+                setTimeout(() => {
+                    repairText.textContent = '修复完成';
+                    repairLoading.style.display = 'none';
+                    document.getElementById('downloadButton').disabled = false;
+                    document.getElementById('downloadOriginalButton').disabled = false;
+                }, 3000);
+            });
+            
+            // 重置按钮
+            document.getElementById('resetButton').addEventListener('click', function() {
+                location.reload();
+            });
+        });
+    </script>

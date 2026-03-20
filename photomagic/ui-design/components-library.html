@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoMagic Studio - 组件库</title>
+    <link rel="stylesheet" href="design-system.css">
+    <style>
+        /* 组件库专用样式 */
+        .component-library {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .library-header {
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+        
+        .library-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--color-gray-900);
+            margin-bottom: 0.5rem;
+        }
+        
+        .library-subtitle {
+            font-size: 1.125rem;
+            color: var(--color-gray-600);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            margin-bottom: 4rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-gray-200);
+        }
+        
+        .section-title {
+            font-size: 1.875rem;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--color-brand-500);
+        }
+        
+        .section-description {
+            font-size: 1rem;
+            color: var(--color-gray-600);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .component-card {
+            background: white;
+            border: 1px solid var(--color-gray-200);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .component-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .component-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: 1rem;
+        }
+        
+        .component-demo {
+            margin-bottom: 1rem;
+            padding: 1.5rem;
+            background: var(--color-gray-50);
+            border-radius: 8px;
+            border: 1px solid var(--color-gray-200);
+        }
+        
+        .component-code {
+            background: var(--color-gray-900);
+            color: var(--color-gray-100);
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+        
+        .component-props {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: var(--color-gray-600);
+        }
+        
+        .component-props dt {
+            font-weight: 600;
+            color: var(--color-gray-700);
+            margin-top: 0.5rem;
+        }
+        
+        .component-props dd {
+            margin-left: 0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .color-swatch {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 8px;
+            vertical-align: middle;
+            border: 1px solid var(--color-gray-300);
+        }
+        
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .color-item {
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--color-gray-200);
+        }
+        
+        .color-name {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--color-gray-600);
+        }
+        
+        .usage-example {
+            background: var(--color-gray-50);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            border: 1px solid var(--color-gray-200);
+        }
+        
+        .usage-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--color-gray-700);
+            margin-bottom: 0.75rem;
+        }
+        
+        .responsive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .responsive-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--color-gray-200);
+            text-align: center;
+        }
+        
+        .responsive-label {
+            font-weight: 600;
+            color: var(--color-gray-700);
+            margin-bottom: 0.5rem;
+        }
+        
+        .responsive-value {
+            font-family: 'Courier New', monospace;
+            color: var(--color-brand-600);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .status-beta {
+            background: var(--color-warning-100);
+            color: var(--color-warning-800);
+        }
+        
+        .status-stable {
+            background: var(--color-success-100);
+            color: var(--color-success-800);
+        }
+        
+        .status-deprecated {
+            background: var(--color-gray-100);
+            color: var(--color-gray-700);
+        }
+        
+        .do-dont {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .do-item, .dont-item {
+            padding: 1rem;
+            border-radius: 8px;
+            position: relative;
+            padding-top: 2.5rem;
+        }
+        
+        .do-item {
+            background: var(--color-success-50);
+            border: 1px solid var(--color-success-200);
+        }
+        
+        .dont-item {
+            background: var(--color-error-50);
+            border: 1px solid var(--color-error-200);
+        }
+        
+        .do-item::before {
+            content: "✓ 正确做法";
+            position: absolute;
+            top: 0.75rem;
+            left: 1rem;
+            font-weight: 600;
+            color: var(--color-success-700);
+        }
+        
+        .dont-item::before {
+            content: "✗ 错误做法";
+            position: absolute;
+            top: 0.75rem;
+            left: 1rem;
+            font-weight: 600;
+            color: var(--color-error-700);
+        }
+        
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 1.5rem;
+            text-align: center;
+        }
+        
+        .icon-item {
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--color-gray-200);
+            transition: all 0.2s ease;
+        }
+        
+        .icon-item:hover {
+            background: var(--color-gray-50);
+            transform: scale(1.05);
+        }
+        
+        .icon-display {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .icon-name {
+            font-size: 0.75rem;
+            color: var(--color-gray-600);
+            word-break: break-all;
+        }
+        
+        .table-of-contents {
+            background: var(--color-gray-50);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--color-gray-200);
+        }
+        
+        .toc-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--color-gray-800);
+        }
+        
+        .toc-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .toc-item {
+            margin-bottom: 0.5rem;
+        }
+        
+        .toc-link {
+            color: var(--color-brand-600);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .toc-link:hover {
+            color: var(--color-brand-800);
+            text-decoration: underline;
+        }
+        
+        .toc-subitem {
+            margin-left: 1rem;
+            margin-top: 0.25rem;
+        }
+        
+        .version-badge {
+            display: inline-block;
+            background: var(--color-brand-100);
+            color: var(--color-brand-800);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="component-library">
+        <!-- 页眉 -->
+        <header class="library-header">
+            <h1 class="library-title">PhotoMagic Studio 组件库</h1>
+            <p class="library-subtitle">统一的设计系统和可复用的UI组件，用于构建一致的用户体验。</p>
+            <div class="version-badge">v2.0</div>
+        </header>
+        
+        <!-- 目录 -->
+        <nav class="table-of-contents">
+            <h2 class="toc-title">目录</h2>
+            <ul class="toc-list">
+                <li class="toc-item"><a href="#colors" class="toc-link">1. 色彩系统</a></li>
+                <li class="toc-item"><a href="#typography" class="toc-link">2. 字体系统</a></li>
+                <li class="toc-item"><a href="#spacing" class="toc-link">3. 间距系统</a></li>
+                <li class="toc-item"><a href="#buttons" class="toc-link">4. 按钮组件</a></li>
+                <li class="toc-item"><a href="#forms" class="toc-link">5. 表单组件</a></li>
+                <li class="toc-item"><a href="#cards" class="toc-link">6. 卡片组件</a></li>
+                <li class="toc-item"><a href="#navigation" class="toc-link">7. 导航组件</a></li>
+                <li class="toc-item"><a href="#feedback" class="toc-link">8. 反馈组件</a></li>
+                <li class="toc-item"><a href="#icons" class="toc-link">9. 图标系统</a></li>
+                <li class="toc-item"><a href="#layout" class="toc-link">10. 布局系统</a></li>
+            </ul>
+        </nav>
+        
+        <!-- 色彩系统 -->
+        <section id="colors" class="section">
+            <h2 class="section-title">1. 色彩系统 <span class="status-badge status-stable">稳定</span></h2>
+            <p class="section-description">统一的色彩系统，确保品牌一致性和可访问性。所有颜色都经过WCAG 2.1 AA标准测试。</p>
+            
+            <div class="component-grid">
+                <!-- 品牌色 -->
+                <div class="component-card">
+                    <h3 class="component-title">品牌色</h3>
+                    <div class="component-demo">
+                        <div class="color-grid">
+                            <div class="color-item" style="background-color: var(--color-brand-50);">
+                                <div class="color-name">Brand 50</div>
+                                <div class="color-value">#eff6ff</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-brand-500); color: white;">
+                                <div class="color-name">Brand 500</div>
+                                <div class="color-value">#3b82f6</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-brand-600); color: white;">
+                                <div class="color-name">Brand 600</div>
+                                <div class="color-value">#2563eb</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-brand-900); color: white;">
+                                <div class="color-name">Brand 900</div>
+                                <div class="color-value">#1e3a8a</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-props">
+                        <dl>
+                            <dt>使用场景</dt>
+                            <dd>主要按钮、重要操作、品牌标识</dd>
+                            <dt>对比度</dt>
+                            <dd>Brand 600 在白色背景上对比度 7.3:1 ✓</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <!-- 功能色 -->
+                <div class="component-card">
+                    <h3 class="component-title">功能色</h3>
+                    <div class="component-demo">
+                        <div class="color-grid">
+                            <div class="color-item" style="background-color: var(--color-success-500); color: white;">
+                                <div class="color-name">Success</div>
+                                <div class="color-value">#22c55e</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-warning-500); color: white;">
+                                <div class="color-name">Warning</div>
+                                <div class="color-value">#f59e0b</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-error-500); color: white;">
+                                <div class="color-name">Error</div>
+                                <div class="color-value">#ef4444</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-info-500); color: white;">
+                                <div class="color-name">Info</div>
+                                <div class="color-value">#0ea5e9</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-props">
+                        <dl>
+                            <dt>使用场景</dt>
+                            <dd>状态反馈、警告提示、成功消息</dd>
+                            <dt>语义</dt>
+                            <dd>每种颜色都有明确的语义含义</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <!-- 中性色 -->
+                <div class="component-card">
+                    <h3 class="component-title">中性色</h3>
+                    <div class="component-demo">
+                        <div class="color-grid">
+                            <div class="color-item" style="background-color: var(--color-gray-50);">
+                                <div class="color-name">Gray 50</div>
+                                <div class="color-value">#f9fafb</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-gray-500); color: white;">
+                                <div class="color-name">Gray 500</div>
+                                <div class="color-value">#6b7280</div>
+                            </div>
+                            <div class="color-item" style="background-color: var(--color-gray-900); color: white;">
+                                <div class="color-name">Gray 900</div>
+                                <div class="color-value">#111827</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-props">
+                        <dl>
+                            <dt>使用场景</dt>
+                            <dd>文本、背景、边框、分隔线</dd>
+                            <dt>对比度</dt>
+                            <dd>Gray 900 在白色背景上对比度 17.5:1 ✓</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="usage-example">
+                <h4 class="usage-title">使用示例</h4>
+                <div class="do-dont">
+                    <div class="do-item">
+                        主要操作使用品牌色，次要操作使用中性色。
+                    </div>
+                    <div class="dont-item">
+                        不要随意使用高饱和度色彩，避免视觉疲劳。
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 字体系统 -->
+        <section id="typography" class="section">
+            <h2 class="section-title">2. 字体系统 <span class="status-badge status-stable">稳定</span></h2>
+            <p class="section-description">统一的字体系统，确保良好的可读性和视觉层次。</p>
+            
+            <div class="component-grid">
+                <!-- 标题层级 -->
+                <div class="component-card">
+                    <h3 class="component-title">标题层级</h3>
+                    <div class="component-demo">
+                        <h1 style="font-size: var(--font-size-5xl); font-weight: 700; margin-bottom: 1rem;">标题 H1</h1>
+                        <h2 style="font-size: var(--font-size-3xl); font-weight: 600; margin-bottom: 1rem;">标题 H2</h2>
+                        <h3 style="font-size: var(--font-size-2xl); font-weight: 600; margin-bottom: 1rem;">标题 H3</h3>
+                        <h4 style="font-size: var(--font-size-xl); font-weight: 600; margin-bottom: 1rem;">标题 H4</h4>
+                    </div>
+                    <div class="component-code">
+&lt;h1 class="text-5xl font-bold"&gt;标题 H1&lt;/h1&gt;
+&lt;h2 class="text-3xl font-semibold"&gt;标题 H2&lt;/h2&gt;
+&lt;h3 class="text-2xl font-semibold"&gt;标题 H3&lt;/h3&gt;
+&lt;h4 class="text-xl font-semibold"&gt;标题 H4&lt;/h4&gt;
+                    </div>
+                </div>
+                
+                <!-- 正文文本 -->
+                <div class="component-card">
+                    <h3 class="component-title">正文文本</h3>
+                    <div class="component-demo">
+                        <p style="font-size: var(--font-size-lg); margin-bottom: 1rem;">正文大 - 18px</p>
+                        <p style="font-size: var(--font-size-base); margin-bottom: 1rem;">正文 - 16px</p>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-gray-600);">正文小 - 14px</p>
+                    </div>
+                    <div class="component-code">
+&lt;p class="text-lg"&gt;正文大 - 18px&lt;/p&gt;
+&lt;p class="text-base"&gt;正文 - 16px&lt;/p&gt;
+&lt;p class="text-sm text-secondary"&gt;正文小 - 14px&lt;/p&gt;
+                    </div>
+                </div>
+                
+                <!-- 字重系统 -->
+                <div class="component-card">
+                    <h3 class="component-title">字重系统</h3>
+                    <div class="component-demo">
+                        <p style="font-weight: 400; margin-bottom: 0.5rem;">正常字重 - 400</p>
+                        <p style="font-weight: 500; margin-bottom: 0.5rem;">中等字重 - 500</p>
+                        <p style="font-weight: 600; margin-bottom: 0.5rem;">半粗字重 - 600</p>
+                        <p style="font-weight: 700; margin-bottom: 0.5rem;">粗体字重 - 700</p>
+                    </div>
+                    <div class="component-code">
+&lt;p class="font-normal"&gt;正常字重 - 400&lt;/p&gt;
+&lt;p class="font-medium"&gt;中等字重 - 500&lt;/p&gt;
+&lt;p class="font-semibold"&gt;半粗字重 - 600&lt;/p&gt;
+&lt;p class="font-bold"&gt;粗体字重 - 700&lt;/p&gt;
+                    </div>
+                </div>
+            </div>
+            
+            <div class="usage-example">
+                <h4 class="usage-title">最佳实践</h4>
+                <div class="do-dont">
+                    <div class="do-item">
+                        保持一致的字体层级，相同类型的文本使用相同的样式。
+                    </div>
+                    <div class="dont-item">
+                        不要在同一页面使用超过3种不同的字体大小。
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 间距系统 -->
+        <section id="spacing" class="section">
+            <h2 class="section-title">3. 间距系统 <span class="status-badge status-stable">稳定</span></h2>
+            <p class="section-description">基于4px网格的间距系统，确保布局的一致性和节奏感。</p>
+            
+            <div class="component-grid">
+                <!-- 间距比例 -->
+                <div class="component-card">
+                    <h3 class="component-title">间距比例</h3>
+                    <div class="component-demo">
+                        <div style="margin-bottom: 1rem;">
+                            <div style="background: var(--color-brand-500); height: 4px; width: 16px; margin-bottom: 4px;"></div>
+                            <small>4px (--space-1)</small>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="background: var(--color-brand-500); height: 4px; width: 32px; margin-bottom: 4px;"></div>
+                            <small>8px (--space-2)</small>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="background: var(--color-brand-500); height: 4px; width: 64px; margin-bottom: 4px;"></div>
+                            <small>16px (--space-4)</small>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="background: var(--color-brand-500); height: 4px; width: 96px; margin-bottom: 4px;"></div>
+                            <small>24px (--space-6)</small>
+                        </div>
+                    </div>
+                    <div class="component-props">
+                        <dl>
+                            <dt>基础单位</dt>
+                            <dd>4px (0.25rem)</dd>
+                            <dt>设计原则</dt>
+                            <dd>所有间距都是4px的倍数</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <!-- 响应式间距 -->
+                <div class="component-card">
+                    <h3 class="component-title">响应式间距</h3>
+                    <div class="component-demo">
+                        <div class="responsive-grid">
+                            <div class="responsive-item">
+                                <div class="responsive-label">移动端</div>
+                                <div class="responsive-value">--space-4</div>
+                                <small>16px 容器内边距</small>
+                            </div>
+                            <div class="responsive-item">
+                                <div class="responsive-label">平板端</div>
+                                <div class="responsive-value">--space-6</div>
+                                <small>24px 容器内边距</small>
+                            </div>
+                            <div class="responsive-item">
+                                <div class="responsive-label">桌面端</div>
+                                <div class="responsive-value">--space-8</div>
+                                <small>32px 容器内边距</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-code">
+/* 响应式间距变量 */
+:root {
+  --container-padding: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --container-padding: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --container-padding: var(--space-8);
+  }
+}
+                    </div>
+                </div>
+                
+                <!-- 间距工具类 -->
+                <div class="component-card">
+                    <h3 class="component-title">间距工具类</h3>
+                    <div class="component-demo">
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: var(--color-gray-100); border-radius: 4px;">
+                            <code>.m-4</code> - 四周16px外边距
+                        </div>
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: var(--color-gray-100); border-radius: 4px;">
+                            <code>.p-4</code> - 四周16px内边距
+                        </div>
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: var(--color-gray-100); border-radius: 4px;">
+                            <code>.gap-4</code> - 16px网格间隙
+                        </div>
+                    </div>
+                    <div class="component-code">
+&lt;div class="m-4 p-4"&gt;
+  四周16px外边距和内边距
+&lt;/div&gt;
+
+&lt;div class="flex gap-4"&gt;
+  &lt;div&gt;项目1&lt;/div&gt;
+  &lt;div&gt;项目2&lt;/div&gt;
+&lt;/div&gt;
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 按钮组件 -->
+        <section id="buttons" class="section">
+            <h2 class="section-title">4. 按钮组件 <span class="status-badge status-stable">稳定</span></h2>
+            <p class="section-description">多种样式的按钮组件，支持不同状态和尺寸。</p>
+            
+            <div class="component-grid">
+                <!-- 主要按钮 -->
+                <div class="component-card">
+                    <h3 class="component-title">主要按钮</h3>
+                    <div class="component-demo">
+                        <button class="btn btn-primary m-2">主要按钮</button>
+                        <button class="btn btn-primary m-2" disabled>禁用状态</button>
+                        <button class="btn btn-primary btn-sm m-2">小按钮</button>
+                        <button class="btn btn-primary btn-lg m-2">大按钮</button>
+                    </div>
+                    <div class="component-code">
+&lt;button class="btn btn-primary"&gt;主要按钮&lt;/button&gt;
+&lt;button class="btn btn-primary" disabled&gt;禁用状态&lt;/button&gt;
+&lt;button class="btn btn-primary btn-sm"&gt;小按钮&lt;/button&gt;
+&lt;button class="btn btn-primary btn-lg"&gt;大按钮&lt;/button&gt;
+                    </div>
+                </div>
+                
+                <!-- 次要按钮 -->
+                <div class="component-card">
+                    <h3 class="component-title">次要按钮</h3>
+                    <div class="component-demo">
+                        <button class="btn btn-secondary m-2">次要按钮</button>
+                        <button class="btn btn-ghost m-2">幽灵按钮</button>
+                        <button class="btn btn-success m-2">成功按钮</button>
+                        <button class="btn btn-error m-2">错误按钮</button>
+                    </div>
+                    <div class="component-code">
+&lt;button class="btn btn-secondary"&gt;次要按钮&lt;/button&gt;
+&lt;button class="btn btn-ghost"&gt;幽灵按钮&lt;/button&gt;
+&lt;button class="btn btn-success"&gt;成功按钮&lt;/button&gt;
+&lt;button class="btn btn-error"&gt;错误按钮&lt;/button&gt;
+                    </div>
+                </div>
+                
+                <!-- 按钮状态 -->
+                <div class="component-card">
+                    <h3 class="component-title">按钮状态</h3>
+                    <div class="component-demo">
+                        <div style="margin-bottom: 1rem;">
+                            <button class="btn btn-primary m-2">默认</button>
+                            <button class="btn btn-primary m-2" style="background-color: var(--color-brand-700);">悬停</button>
+                            <button class="btn btn-primary m-2" style="transform: scale(0.98);">点击</button>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary m-2" style="opacity: 0.5; cursor: not-allowed;">禁用</button>
+                            <button class="btn btn-primary m-2">
+                                <span class="loading"></span> 加载中
+                            </button>
+                        </div>
+                    </div>
+                    <div class="component-props">
+                        <dl>
+                            <dt>交互状态</dt>
+                            <dd>默认、悬停、点击、禁用、加载</dd>
+                            <dt>触摸目标</dt>
+                            <dd>最小44px × 44px，满足可访问性</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="usage-example">
+                <h4 class="usage-title">使用指南</h4>
+                <div class="do-dont">
+                    <div class="do-item">
+                        主要操作使用主要按钮，次要操作使用次要按钮。
+                    </div>
+                    <div class="dont-item">
+                        不要在同一页面使用超过2种主要按钮样式。
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 表单组件 -->
+        <section id="forms" class="section">
+            <h2 class="section-title">5. 表单组件 <span class="status-badge status-beta">测试中</span></h2>
+            <p class="section-description">统一的表单组件，支持验证和不同状态。</p>
+            
+            <div class="component-grid">
+                <!-- 输入框 -->
+                <div class="component-card">
+                    <h3 class="component-title">输入框</h3>
+                    <div class="component-demo">
+                        <div class="form-group">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-input" placeholder="请输入用户名">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">密码</label>
+                            <input type="password" class="form-input" placeholder="请输入密码">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">禁用输入</label>
+                            <input type="text" class="form-input" placeholder="禁用状态" disabled>
+                        </div>
+                    </div>
+                    <div class="component-code">
+&lt;div class="form-group"&gt;
+  &lt;label class="form-label"&gt;用户名&lt;/label&gt;
+  &lt;input type="text" class="form-input" placeholder="请输入用户名"&gt;
+&lt;/div&gt;
+                    </div>
+                </div>
+                
+                <!-- 表单验证 -->
+                <div class="component-card">
+                    <h3 class="component-title">表单验证</h3>
+                    <div class="component-demo">
+                        <div class="form-group">
+                            <label class="form-label">邮箱地址</label>
+                            <input type="email" class="form-input error" placeholder="example@email.com">
+                            <div class="form-error">请输入有效的邮箱地址</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">手机号码</label>
+                            <input type="tel" class="form-input" placeholder="13800138000">
+                            <div class="form-help">请输入11位手机号码</div>
+                        </div>
+                    </div>
+                    <div class="component-code">
+&lt;div class="form-group"&gt;
+  &lt;label class="form-label"&gt;邮箱地址&lt;/label&gt;
+  &lt;input type="email" class="form-input error"&gt;
+  &lt;div class="form-error"&gt;请输入有效的邮箱地址&lt;/div&gt;
+&lt;/div&gt;
+                    </div>
+                </div>
+                
+                <!-- 选择器 -->
+                <div class="component-card">
+                    <h3 class="component-title">选择器</h3>
+                    <div class="component-demo">
+                        <div class="form-group">
+                            <label class="form-label">单选按钮</label>
+                            <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="radio" name="option" checked> 选项一
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="radio" name="option"> 选项二
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">复选框</label>
+                            <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" checked> 同意条款
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox"> 订阅通知
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-props">
+                        <dl>
+                            <dt>交互状态</dt>
+                            <dd>聚焦、验证、禁用、只读</dd>
+                            <dt>可访问性</dt>
+                            <dd>支持键盘导航和屏幕阅读器</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 卡片组件 -->
+        <section id="cards" class="section">
+            <h2 class="section-title">6. 卡片组件 <span class="status-badge status-stable">稳定</span></h2>
+            <p class="section-description">用于展示内容的卡片组件，支持多种布局和交互。</p>
+            
+            <div class="component-grid">
+                <!-- 基础卡片 -->
+                <div class="component-card">
+                    <h3 class="component-title">基础卡片</h3>
+                    <div class="component-demo">
+                        <div class="card" style="max-width: 300px;">
+                            <div class="card-header">
+                                <h3 class="card-title">卡片标题</h3>
+                                <p class="card-subtitle">这是一个卡片副标题</p>
+                            </div>
+                            <div class="card-body">
+                                <p>卡片内容区域，可以放置文本、图片或其他内容。</p>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-primary btn-sm">操作按钮</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-code">
+&lt;div class="card"&gt;
+  &lt;div class="card-header"&gt;
+    &lt;h3 class="card-title"&gt;卡片标题&lt;/h3&gt;
+    &lt;p class="card-subtitle"&gt;这是一个卡片副标题&lt;/p&gt;
+  &

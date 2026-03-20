@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背景替换 - PhotoMagic Studio</title>
+    <link rel="stylesheet" href="design-system.css">
+    <style>
+        /* 页面专用样式 */
+        .page-bg-replace {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--color-gray-50) 0%, white 100%);
+        }
+        
+        /* 面包屑导航 */
+        .breadcrumb {
+            padding: var(--space-4) 0;
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-600);
+        }
+        
+        .breadcrumb a {
+            color: var(--color-brand-600);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .breadcrumb .separator {
+            margin: 0 var(--space-2);
+            color: var(--color-gray-400);
+        }
+        
+        .breadcrumb .current {
+            color: var(--color-gray-700);
+            font-weight: 500;
+        }
+        
+        /* 页面标题 */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-title {
+            font-size: var(--font-size-4xl);
+            font-weight: 700;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+        
+        .page-subtitle {
+            font-size: var(--font-size-lg);
+            color: var(--color-gray-600);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* 主工作区 */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-8);
+            margin-bottom: var(--space-8);
+        }
+        
+        @media (max-width: 1024px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 图片区域 */
+        .image-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .section-icon {
+            font-size: 1.5rem;
+        }
+        
+        .section-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .image-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: var(--color-gray-100);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: var(--space-4);
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .image-placeholder {
+            text-align: center;
+            padding: var(--space-8);
+        }
+        
+        .image-placeholder-icon {
+            font-size: 3rem;
+            color: var(--color-gray-400);
+            margin-bottom: var(--space-2);
+        }
+        
+        .image-actions {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-2);
+        }
+        
+        /* 上传按钮 */
+        .upload-btn {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-brand-500);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .upload-btn:hover {
+            background: var(--color-brand-600);
+            transform: translateY(-1px);
+        }
+        
+        .upload-btn:disabled {
+            background: var(--color-gray-400);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* 背景库区域 */
+        .backgrounds-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .backgrounds-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-primary);
+            margin-bottom: var(--space-4);
+        }
+        
+        .backgrounds-tab {
+            padding: var(--space-3) var(--space-4);
+            background: none;
+            border: none;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-gray-600);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .backgrounds-tab:hover {
+            color: var(--color-gray-800);
+        }
+        
+        .backgrounds-tab.active {
+            color: var(--color-brand1-600);
+            border-bottom-color: var(--color-brand1-600);
+        }
+        
+        .backgrounds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: var(--space-3);
+            max-height: 400px;
+            overflow-y: auto;
+            padding: var(--space-2);
+        }
+        
+        .background-item {
+            position: relative;
+            aspect-ratio: 1/1;
+            border: 2px solid var(--color-gray-200);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .background-item:hover {
+            border-color: var(--color-brand1-400);
+            transform: scale(1.05);
+        }
+        
+        .background-item.selected {
+            border-color: var(--color-brand1-600);
+            box-shadow: 0 0 0 2px var(--color-brand1-200);
+        }
+        
+        .background-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .background-color {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .background-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: var(--font-size-xs);
+            padding: var(--space-1) var(--space-2);
+            text-align: center;
+        }
+        
+        /* 自定义背景区域 */
+        .custom-bg-section {
+            background: var(--color-gray-50);
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            margin-top: var(--space-4);
+        }
+        
+        .custom-bg-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-3);
+            margin-bottom: var(--space-3);
+        }
+        
+        .custom-bg-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-2);
+            background: white;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .custom-bg-option:hover {
+            border-color: var(--color-brand1-400);
+            background: var(--color-brand-50);
+        }
+        
+        .custom-bg-icon {
+            font-size: 1.5rem;
+        }
+        
+        .custom-bg-name {
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+        }
+        
+        .color-picker-container {
+            display: none;
+            margin-top: var(--space-3);
+        }
+        
+        .color-picker {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+        
+        .gradient-picker {
+            display: none;
+            margin-top: var(--space-3);
+        }
+        
+        .gradient-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-2);
+        }
+        
+        .gradient-option {
+            height: 40px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .gradient-option.selected {
+            border-color: var(--color-brand1-600);
+        }
+        
+        /* 参数设置区域 */
+        .parameters-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--space-6);
+        }
+        
+        .parameter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+        
+        .parameter-label {
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-gray-700);
+        }
+        
+        .parameter-options {
+            display: flex;
+            gap: var(--space-3);
+            flex-wrap: wrap;
+        }
+        
+        .parameter-option {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            cursor: pointer;
+        }
+        
+        .parameter-slider {
+            width: 100%;
+            margin-top: var(--space-2);
+        }
+        
+        .parameter-value {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--font-size-xs);
+            color: var(--color-gray-600);
+        }
+        
+        /* 预览区域 */
+        .preview-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .preview-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--color-gray-100);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: var(--space-4);
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .preview-controls {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-4);
+        }
+        
+        .preview-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .preview-toggle-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-700);
+        }
+        
+        /* AI建议区域 */
+        .ai-suggestions {
+            background: var(--color-brand-50);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-brand-200);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+        }
+        
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .ai-icon {
+            font-size: 1.5rem;
+        }
+        
+        .ai-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-brand-800);
+        }
+        
+        .ai-suggestions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--space-4);
+        }
+        
+        .ai-suggestion {
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-brand-200);
+            padding: var(--space-3);
+            cursor: pointer;
+            transition: all var(--transition-base);
+            text-align: center;
+        }
+        
+        .ai-suggestion:hover {
+            border-color: var(--color-brand-400);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .ai-suggestion-icon {
+            font-size: 2rem;
+            margin-bottom: var(--space-2);
+        }
+        
+        .ai-suggestion-text {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-700);
+        }
+        
+        /* 操作按钮区域 */
+        .actions-section {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-4);
+            margin-bottom: var(--space-8);
+            flex-wrap: wrap;
+        }
+        
+        /* 批量处理区域 */
+        .batch-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-primary);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+        
+        .batch-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+        
+        .batch-item {
+            position: relative;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            aspect-ratio: 1/1;
+            background: var(--color-gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .batch-item img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .batch-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--color-error-500);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .batch-add {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border-primary);
+            border-radius: var(--radius-md);
+            aspect-ratio: 1/1;
+            background: var(--color-gray-50);
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .batch-add:hover {
+            border-color: var(--color-brand-500);
+            background: var(--color-brand-50);
+        }
+        
+        .batch-add-icon {
+            font-size: 2rem;
+            color: var(--color-gray-500);
+        }
+        
+        /* 帮助区域 */
+        .help-section {
+            background: var(--color-gray-50);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .help-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .help-icon {
+            font-size: 1.5rem;
+        }
+        
+        .help-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-gray-800);
+        }
+        
+        .help-tips {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+        }
+        
+        @media (max-width: 768px) {
+            .help-tips {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .help-tip {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .help-tip-title {
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+        
+        .help-tip-content {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-700);
+            line-height: 1.5;
+        }
+        
+        /* 加载状态 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--color-gray-300);
+            border-top-color: var(--color-brand-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* 动画 */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn var(--transition-base);
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: var(--font-size-3xl);
+            }
+            
+            .actions-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .actions-section .btn {
+                width: 100%;
+            }
+            
+            .backgrounds-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+            
+            .custom-bg-options {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-bg-replace">
+        <div class="container">
+            <!-- 面包屑导航 -->
+            <nav class="breadcrumb">
+                <a href="#">首页</a>
+                <span class="separator">/</span>
+                <a href="#">功能</a>
+                <span class="separator">/</span>
+                <span class="current">背景替换</span>
+            </nav>
+            
+            <!-- 页面标题 -->
+            <header class="page-header">
+                <h1 class="page-title">背景替换</h1>
+                <p class="page-subtitle">智能替换图片背景，支持自定义背景和AI推荐场景</p>
+            </header>
+            
+            <!-- 主工作区 -->
+            <div class="workspace">
+                <!-- 原图区域 -->
+                <section class="image-section">
+                    <div class="section-header">
+                        <div class="section-icon">🖼️</div>
+                        <h2 class="section-title">原图</h2>
+                    </div>
+                    
+                    <div class="image-container" id="originalImageContainer">
+                        <div class="image-placeholder" id="originalPlaceholder">
+                            <div class="image-placeholder-icon">📷</div>
+                            <div>请上传需要替换背景的图片</div>
+                        </div>
+                        <img class="image-preview" id="originalImage" style="display: none;" alt="原图">
+                        
+                        <!-- 加载状态 -->
+                        <div class="loading-overlay" id="originalLoading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="image-actions">
+                        <button class="upload-btn" id="uploadOriginalBtn">
+                            <span>📁 上传图片</span>
+                        </button>
+                        <input type="file" id="originalFileInput" accept=".jpg,.jpeg,.png,.webp" style="display: none;">
+                    </div>
+                </section>
+                
+                <!-- 背景库区域 -->
+                <section class="backgrounds-section">
+                    <div class="section-header">
+                        <div class="section-icon">🎨</div>
+                        <h2 class="section-title">选择背景</h2>
+                    </div>
+                    
+                    <div class="backgrounds-tabs">
+                        <button class="backgrounds-tab active" data-tab="scenes">场景</button>
+                        <button class="backgrounds-tab" data-tab="colors">纯色</button>
+                        <button class="backgrounds-tab" data-tab="gradients">渐变</button>
+                        <button class="backgrounds-tab" data-tab="custom">自定义</button>
+                    </div>
+                    
+                    <!-- 场景背景 -->
+                    <div class="backgrounds-grid" id="scenesGrid">
+                        <div class="background-item selected" data-bg="beach">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%2363b3ed'/%3E%3Crect width='100' height='40' y='60' fill='%23f6ad55'/%3E%3C/svg%3E" class="background-image" alt="海滩">
+                            <div class="background-label">海滩</div>
+                        </div>
+                        <div class="background-item" data-bg="office">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Crect width='60' height='40' x='20' y='30' fill='%234a5568'/%3E%3C/svg%3E" class="background-image" alt="办公室">
+                            <div class="background-label">办公室</div>
+                        </div>
+                        <div class="background-item" data-bg="nature">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%2348bb78'/%3E%3Crect width='30' height='40' x='35' y='20' fill='%232d3748'/%3E%3C/svg%3E" class="background-image" alt="自然">
+                            <div class="background-label">自然</div>
+                        </div>
+                        <div class="background-item" data-bg="city">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%234a5568'/%3E%3Crect width='10' height='30' x='20' y='40' fill='%23e2e8f0'/%3E%3Crect width='10' height='40' x='40' y='30' fill='%23e2e8f0'/%3E%3Crect width='10' height='50' x='60' y='20' fill='%23e2e8f0'/%3E%3C/svg%3E" class="background-image" alt="城市">
+                            <div class="background-label">城市</div>
+                        </div>
+                        <div class="background-item" data-bg="studio">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%232d3748'/%3E%3Crect width='80' height='60' x='10' y='20' fill='%234a5568'/%3E%3C/svg%3E" class="background-image" alt="摄影棚">
+                            <div class="background-label">摄影棚</div>
+                        </div>
+                        <div class="background-item" data-bg="home">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23ed8936'/%3E%3Crect width='60' height='40' x='20' y='30' fill='%23c05621'/%3E%3C/svg%3E" class="background-image" alt="家居">
+                            <div class="background-label">家居</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 纯色背景 (默认隐藏) -->
+                    <div class="backgrounds-grid" id="colorsGrid" style="display: none;">
+                        <div class="background-item" data-color="white">
+                            <div class="background-color" style="background: white;"></div>
+                            <div class="background-label">白色</div>
+                        </div>
+                        <div class="background-item" data-color="black">
+                            <div class="background-color" style="background: black;"></div>
+                            <div class="background-label">黑色</div>
+                        </div>
+                        <div class="background-item" data-color="blue">
+                            <div class="background-color" style="background: #3b82f6;"></div>
+                            <div class="background-label">蓝色</div>
+                        </div>
+                        <div class="background-item" data-color="green">
+                            <div class="background-color" style="background: #10b981;"></div>
+                            <div class="background-label">绿色</div>
+                        </div>
+                        <div class="background-item" data-color="red">
+                            <div class="background-color" style="background: #ef4444;"></div>
+                            <div class="background-label">红色</div>
+                        </div>
+                        <div class="background-item" data-color="gray">
+                            <div class="background-color" style="background: #6b7280;"></div>
+                            <div class="background-label">灰色</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 自定义背景区域 -->
+                    <div class="custom-bg-section" id="customBgSection" style="display: none;">
+                        <div class="custom-bg-options">
+                            <div class="custom-bg-option" data-type="color">
+                                <div class="custom-bg-icon">🎨</div>
+                                <div class="custom-bg-name">自定义颜色</div>
+                            </div>
+                            <div class="custom-bg-option" data-type="gradient">
+                                <div class="custom-bg-icon">🌈</div>
+                                <div class="custom-bg-name">渐变背景</div>
+                            </div>
+                            <div class="custom-bg-option" data-type="upload">
+                                <div class="custom-bg-icon">📁</div>
+                                <div class="custom-bg-name">上传背景</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 颜色选择器 -->
+                        <div class="color-picker-container" id="colorPickerContainer">
+                            <input type="color" class="color-picker" id="colorPicker" value="#3b82f6">
+                        </div>
+                        
+                        <!-- 渐变选择器 -->
+                        <div class="gradient-picker" id="gradientPicker">
+                            <div class="gradient-options">
+                                <div class="gradient-option selected" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                                <div class="gradient-option" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+                                <div class="gradient-option" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+                                <div class="gradient-option" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- 参数设置区域 -->
+            <section class="parameters-section">
+                <div class="section-header">
+                    <div class="section-icon">⚙️</div>
+                    <h2 class="section-title">融合参数</h2>
+                </div>
+                
+                <div class="parameters-grid">
+                    <!-- 边缘融合 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">边缘融合</label>
+                        <div class="parameter-options">
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="soft" checked>
+                                <span>柔和</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="natural">
+                                <span>自然</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="edge" value="sharp">
+                                <span>锐利</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 阴影设置 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">阴影强度</label>
+                        <input type="range" class="parameter-slider" id="shadowSlider" min="0" max="100" value="30">
+                        <div class="parameter-value">
+                            <span>无</span>
+                            <span id="shadowValue">30%</span>
+                            <span>强</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 光照方向 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">光照方向</label>
+                        <div class="parameter-options">
+                            <label class="parameter-option">
+                                <input type="radio" name="light" value="top-left">
+                                <span>左上</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="light" value="top" checked>
+                                <span>上方</span>
+                            </label>
+                            <label class="parameter-option">
+                                <input type="radio" name="light" value="top-right">
+                                <span>右上</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 透明度 -->
+                    <div class="parameter-group">
+                        <label class="parameter-label">背景透明度</label>
+                        <input type="range" class="parameter-slider" id="opacitySlider" min="0" max="100" value="100">
+                        <div class="parameter-value">
+                            <span>透明</span>
+                            <span id="opacityValue">100%</span>
+                            <span>不透明</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- AI建议区域 -->
+            <section class="ai-suggestions">
+                <div class="ai-header">
+                    <div class="ai-icon">🤖</div>
+                    <h3 class="ai-title">AI智能推荐</h3>
+                </div>
+                
+                <div class="ai-suggestions-grid">
+                    <div class="ai-suggestion" data-suggestion="professional">
+                        <div class="ai-suggestion-icon">💼</div>
+                        <div class="ai-suggestion-text">专业形象</div>
+                    </div>
+                    <div class="ai-suggestion" data-suggestion="creative">
+                        <div class="ai-suggestion-icon">🎨</div>
+                        <div class="ai-suggestion-text">创意设计</div>
+                    </div>
+                    <div class="ai-suggestion" data-suggestion="natural">
+                        <div class="ai-suggestion-icon">🌿</div>
+                        <div class="ai-suggestion-text">自然风光</div>
+                    </div>
+                    <div class="ai-suggestion" data-suggestion="urban">
+                        <div class="ai-suggestion-icon">🏙️</div>
+                        <div class="ai-suggestion-text">城市街景</div>
+                    </div>
+                    <div class="ai-suggestion" data-suggestion="holiday">
+                        <div class="ai-suggestion-icon">🏖️</div>
+                        <div class="ai-suggestion-text">假日氛围</div>
+                    </div>
+                    <div class="ai-suggestion" data-suggestion="minimal">
+                        <div class="ai-suggestion-icon">⬜</div>
+                        <div class="ai-suggestion-text">极简风格</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 预览区域 -->
+            <section class="preview-section">
+                <div class="section-header">
+                    <div class="section-icon">👁️</div>
+                    <h2 class="section-title">预览效果</h2>
+                </div>
+                
+                <div class="preview-container" id="previewContainer">
+                    <div class="image-placeholder" id="previewPlaceholder">
+                        <div class="image-placeholder-icon
