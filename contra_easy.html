@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>魂斗罗第一关 - 轻松版</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+  background: #000; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  min-height: 100vh; 
+  font-family: 'Courier New', monospace; 
+  color: #0f0; 
+  overflow: hidden;
+}
+#game-container {
+  position: relative;
+  width: 512px;
+  height: 480px;
+}
+canvas { 
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 4px solid #333;
+  background: #000;
+  display: block;
+}
+#hud {
+  color: #0f0;
+  font-size: 14px;
+  margin-top: 10px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+.overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.overlay h1 {
+  font-size: 36px;
+  margin-bottom: 20px;
+  color: #f00;
+  text-shadow: 3px 3px 0 #000;
+}
+.overlay p {
+  font-size: 18px;
+  margin: 10px;
+  color: #fff;
+}
+.controls {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-size: 12px;
+  color: #888;
+}
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas" width="512" height="480"></canvas>
+  <div id="startScreen" class="overlay">
+    <h1>魂斗罗</h1>
+    <p>第一关 - 丛林基地 (轻松版)</p>
+    <p>按 ENTER 开始游戏</p>
+    <p>控制: ←→移动  ↑跳跃  ↓趴下  Z/X射击</p>
+    <p>武器: M-机枪 S-散射 F-火焰 L-激光</p>
+    <p style="color:#0ff; font-size:16px;">🎮 轻松模式：子弹慢速，敌人稀少</p>
+  </div>
+  <div id="gameOverScreen" class="overlay" style="display: none;">
+    <h1>游戏结束</h1>
+    <p id="finalScore">得分: 000000</p>
+    <p>按 R 重新开始</p>
+  </div>
+  <div id="completeScreen" class="overlay" style="display: none;">
+    <h1>关卡完成!</h1>
+    <p id="completeScore">得分: 000000</p>
+    <p>恭喜通关!</p>
+  </div>
+  <div class="controls">CONTRA © 1987 KONAMI | 轻松版 by OpenClaw</div>
+</div>
+<div id="hud">
+  <span id="scoreDisplay">SCORE: 000000</span> | 
+  <span id="livesDisplay">LIVES: 5</span> | 
+  <span id="weaponDisplay">WEAPON: NORMAL</span> | 
+  <span id="timeDisplay">TIME: 600</span>
+</div>
+
+<script>
+class ContraGame {
+  constructor() {
+    this.canvas = document.getElementById('gameCanvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.setupCanvas();
+    
+    // 游戏状态
+    this.state = 'START'; // START, PLAYING, GAMEOVER, COMPLETE
+    this.score = 0;
+    this.lives = 5; // 增加生命值
+    this.weapon = 'NORMAL';
+    this.time = 600; // 增加时间
+    this.level = 1;
+    
+    // 玩家属性
+    this.player = {
+      x: 50, y: 184,
+      width: 8, height: 16,
+      speedX: 0, speedY: 0,
+      facing: 1, // 1=右, -1=左
+      isJumping: false,
+      isDucking: false,
+      isShooting: false,
+      shootCooldown: 0,
+      invincible: 0,
+      weapon: 'NORMAL'
+    };
+    
+    // 游戏对象
+    this.bullets = [];
+    this.enemies = [];
+    this.powerups = [];
+    this.platforms = [];
+    this.terrain = [];
+    
+    // 相机
+    this.cameraX = 0;
+    this.levelWidth = 3072;
+    
+    // 输入
+    this.keys = {};
+    this.setupInput();
+    
+    // 初始化
+    this.initLevel();
+    this.updateHUD();
+    
+    // 开始游戏循环
+    this.lastTime = 0;
+    requestAnimationFrame((t) => this.gameLoop(t));
+  }
+  
+  setupCanvas() {
+    this.ctx.imageSmoothingEnabled = false;
+  }
+  
+  setupInput() {
+    document.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      this.keys[key] = true;
+      
+      // 防止默认行为
+      if (['arrowleft','arrowright','arrowup','arrowdown',' ','z','x','enter','r'].includes(key)) {
+        e.preventDefault();
+      }
+      
+      // 游戏控制
+      if (this.state === 'START' && key === 'enter') {
+        this.startGame();
+      }
+      if (this.state === 'GAMEOVER' && key === 'r') {
+        this.restartGame();
+      }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+      this.keys[e.key.toLowerCase()] = false;
+    });
+  }
+  
+  initLevel() {
+    // 创建地形
+    this.createTerrain();
+    
+    // 创建敌人 - 大幅减少数量
+    this.createEnemies();
+    
+    // 创建道具
+    this.createPowerups();
+  }
+  
+  createTerrain() {
+    // 地面平台
+    this.platforms = [
+      {x:0, y:200, width:512, height:8, color:'#0a0'},
+      {x:600, y:150, width:80, height:8, color:'#0a0'},
+      {x:800, y:130, width:60, height:8, color:'#0a0'},
+      {x:1000, y:110, width:100, height:8, color:'#0a0'},
+      {x:1300, y:170, width:200, height:8, color:'#0a0'},
+      {x:1600, y:200, width:300, height:8, color:'#00a'}, // 水域
+      {x:2000, y:140, width:80, height:8, color:'#0a0'},
+      {x:2300, y:100, width:60, height:8, color:'#0a0'},
+      {x:2600, y:160, width:100, height:8, color:'#0a0'},
+      {x:2800, y:80, width:200, height:8, color:'#0a0'} // Boss平台
+    ];
+    
+    // 地形装饰
+    this.terrain = [
+      {x:100, y:150, width:12, height:50, color:'#8b4513', type:'tree'},
+      {x:350, y:160, width:12, height:40, color:'#8b4513', type:'tree'},
+      {x:700, y:110, width:12, height:40, color:'#8b4513', type:'tree'},
+      {x:1100, y:90, width:12, height:30, color:'#8b4513', type:'tree'},
+      {x:1700, y:120, width:12, height:50, color:'#8b4513', type:'tree'},
+      {x:2400, y:140, width:12, height:40, color:'#8b4513', type:'tree'}
+    ];
+  }
+  
+  createEnemies() {
+    // 初始敌人 - 大幅减少数量，只保留几个
+    this.enemies = [
+      // 第一个区域敌人 - 非常少
+      {x:250, y:188, width:8, height:12, speedX:-0.3, type:'soldier', health:1},
+      {x:450, y:188, width:8, height:12, speedX:-0.3, type:'soldier', health:1},
+      
+      // 第二个区域敌人
+      {x:800, y:142, width:8, height:12, speedX:-0.3, type:'soldier', health:1},
+      {x:1200, y:102, width:8, height:12, speedX:-0.3, type:'soldier', health:1},
+      
+      // 炮台 - 大幅减少，射击频率极低
+      {x:1500, y:192, width:12, height:8, speedX:0, type:'cannon', health:2, shootTimer:0, direction:1},
+      {x:2500, y:152, width:12, height:8, speedX:0, type:'cannon', health:2, shootTimer:180, direction:-1}
+    ];
+  }
+  
+  createPowerups() {
+    this.powerups = [
+      {x:500, y:176, width:8, height:8, type:'M', blink:0},
+      {x:1100, y:94, width:8, height:8, type:'S', blink:0},
+      {x:1900, y:176, width:8, height:8, type:'F', blink:0},
+      {x:2700, y:72, width:8, height:8, type:'L', blink:0}
+    ];
+  }
+  
+  startGame() {
+    this.state = 'PLAYING';
+    document.getElementById('startScreen').style.display = 'none';
+    this.score = 0;
+    this.lives = 5;
+    this.weapon = 'NORMAL';
+    this.time = 600;
+    this.player.x = 50;
+    this.player.y = 184;
+    this.cameraX = 0;
+    this.updateHUD();
+  }
+  
+  restartGame() {
+    this.state = 'START';
+    document.getElementById('gameOverScreen').style.display = 'none';
+    document.getElementById('startScreen').style.display = 'flex';
+    this.initLevel();
+    this.updateHUD();
+  }
+  
+  updateHUD() {
+    document.getElementById('scoreDisplay').textContent = `SCORE: ${this.score.toString().padStart(6,'0')}`;
+    document.getElementById('livesDisplay').textContent = `LIVES: ${this.lives}`;
+    document.getElementById('weaponDisplay').textContent = `WEAPON: ${this.weapon}`;
+    document.getElementById('timeDisplay').textContent = `TIME: ${Math.floor(this.time)}`;
+  }
+  
+  draw() {
+    // 清屏
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // 绘制背景
+    this.drawBackground();
+    
+    // 绘制地形
+    this.drawTerrain();
+    
+    // 绘制敌人
+    this.drawEnemies();
+    
+    // 绘制子弹
+    this.drawBullets();
+    
+    // 绘制道具
+    this.drawPowerups();
+    
+    // 绘制玩家
+    this.drawPlayer();
+    
+    // 绘制UI
+    this.drawUI();
+  }
+  
+  drawBackground() {
+    // 天空
+    const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+    gradient.addColorStop(0, '#003300');
+    gradient.addColorStop(1, '#001100');
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // 远处山脉
+    this.ctx.fillStyle = '#002200';
+    for(let i = 0; i < 3; i++) {
+      const x = (i * 300 - this.cameraX * 0.2) % 900;
+      this.ctx.beginPath();
+      this.ctx.arc(x + 150, 300, 120, Math.PI, 0);
+      this.ctx.lineTo(x + 300, 400);
+      this.ctx.lineTo(x, 400);
+      this.ctx.closePath();
+      this.ctx.fill();
+    }
+  }
+  
+  drawTerrain() {
+    // 平台
+    for(const p of this.platforms) {
+      if(p.x - this.cameraX < 256 && p.x - this.cameraX + p.width > 0) {
+        this.ctx.fillStyle = p.color;
+        const px = (p.x - this.cameraX) * 2;
+        const py = p.y * 2;
+        this.ctx.fillRect(px, py, p.width * 2, p.height * 2);
+        
+        // 平台纹理
+        if(p.color === '#0a0') {
+          this.ctx.fillStyle = '#0f0';
+          for(let i = 0; i < p.width; i += 4) {
+            this.ctx.fillRect(px + i * 2, py, 4, 2);
+          }
+        }
+      }
+    }
+    
+    // 地形装饰
+    for(const t of this.terrain) {
+      if(t.x - this.cameraX < 256 && t.x - this.cameraX + t.width > 0) {
+        this.ctx.fillStyle = t.color;
+        const tx = (t.x - this.cameraX) * 2;
+        const ty = t.y * 2;
+        this.ctx.fillRect(tx, ty, t.width * 2, t.height * 2);
+        
+        if(t.type === 'tree') {
+          // 树冠
+          this.ctx.fillStyle = '#0a0';
+          this.ctx.fillRect(tx - 8, ty - 16, (t.width + 16) * 2, 16);
+          this.ctx.fillRect(tx - 4, ty - 24, (t.width + 8) * 2, 8);
+        }
+      }
+    }
+  }
+  
+  drawPlayer() {
+    if(this.player.invincible > 0 && Math.floor(this.player.invincible / 5) % 2 === 0) {
+      return; // 闪烁无敌
+    }
+    
+    const px = (this.player.x - this.cameraX) * 2;
+    const py = this.player.y * 2;
+    
+    // 身体 (红色)
+    this.ctx.fillStyle = '#f00';
+    this.ctx.fillRect(px, py + 8, 16, 16);
+    
+    // 头部 (肤色)
+    this.ctx.fillStyle = '#ff9966';
+    this.ctx.fillRect(px + 4, py + 4, 8, 8);
+    
+    // 眼睛
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(px + 6, py + 6, 2, 2);
+    this.ctx.fillRect(px + 10, py + 6, 2, 2);
+    
+    // 腿部 (蓝色)
+    this.ctx.fillStyle = '#00f';
+    if(!this.player.isDucking) {
+      this.ctx.fillRect(px, py + 24, 6, 16);
+      this.ctx.fillRect(px + 10, py + 24, 6, 16);
+    } else {
+      this.ctx.fillRect(px, py + 24, 16, 8);
+    }
+    
+    // 枪口闪光
+    if(this.player.isShooting) {
+      this.ctx.fillStyle = '#ff0';
+      const gunX = this.player.x + (this.player.facing === 1 ? 8 : -2);
+      this.ctx.fillRect((gunX - this.cameraX) * 2, py + 12, 4, 4);
+    }
+  }
+  
+  drawEnemies() {
+    for(const e of this.enemies) {
+      const ex = (e.x - this.cameraX) * 2;
+      const ey = e.y * 2;
+      
+      if(e.type === 'soldier') {
+        // 士兵 - 使用更亮的颜色和轮廓使其更可见
+        // 轮廓
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(ex-1, ey-1, 18, 26);
+        
+        // 身体 (亮红色)
+        this.ctx.fillStyle = '#ff4444';
+        this.ctx.fillRect(ex, ey, 16, 24);
+        
+        // 头盔
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(ex + 4, ey - 6, 8, 6);
+        
+        // 眼睛 (白色)
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(ex + 6, ey - 4, 2, 2);
+        this.ctx.fillRect(ex + 10, ey - 4, 2, 2);
+        
+        // 轮廓线
+        this.ctx.strokeStyle = '#000';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(ex, ey, 16, 24);
+      } else if(e.type === 'cannon') {
+        // 炮台 - 使用更亮的颜色
+        // 轮廓
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(ex-1, ey-1, 26, 18);
+        
+        // 炮台主体 (亮灰色)
+        this.ctx.fillStyle = '#aaa';
+        this.ctx.fillRect(ex, ey, 24, 16);
+        
+        // 炮口
+        this.ctx.fillStyle = '#ff4444';
+        this.ctx.fillRect(ex + 8, ey - 8, 8, 8);
+        
+        // 炮口闪光
+        if(e.shootTimer < 10) {
+          this.ctx.fillStyle = '#ff0';
+          this.ctx.fillRect(ex + (e.direction === 1 ? 24 : -4), ey + 4, 8, 8);
+        }
+        
+        // 轮廓线
+        this.ctx.strokeStyle = '#000';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(ex, ey, 24, 16);
+      }
+    }
+  }
+  
+  drawBullets() {
+    for(const b of this.bullets) {
+      const bx = (b.x - this.cameraX) * 2;
+      const by = b.y * 2;
+      
+      let color = '#ff0';
+      if(b.type === 'M') color = '#0ff';
+      else if(b.type === 'S') color = '#0f0';
+      else if(b.type === 'F') color = '#f90';
+      else if(b.type === 'L') color = '#f0f';
+      else if(b.type === 'ENEMY') color = '#ff4444'; // 敌人子弹用更亮的红色
+      
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(bx, by, b.width * 2, b.height * 2);
+      
+      // 为敌人子弹添加轮廓
+      if(b.type === 'ENEMY') {
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(bx, by, b.width * 2, b.height * 2);
+      }
+    }
+  }
+  
+  drawPowerups() {
+    for(const p of this.powerups) {
+      if(p.blink % 10 < 5) {
+        const px = (p.x - this.cameraX) * 2;
+        const py = p.y * 2;
+        
+        let color = '#f00';
+        if(p.type === 'M') color = '#0ff';
+        else if(p.type === 'S') color = '#0f0';
+        else if(p.type === 'F') color = '#f90';
+        else if(p.type === 'L') color = '#f0f';
+        
+        // 闪烁箱子
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(px, py, 16, 16);
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(px + 2, py + 2, 12, 12);
+        
+        // 字母
+        this.ctx.fillStyle = '#000';
+        this.ctx.font = '12px monospace';
+        this.ctx.fillText(p.type, px + 4, py + 12);
+      }
+    }
+  }
+  
+  drawUI() {
+    // 时间
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px monospace';
+    this.ctx.fillText(`TIME ${Math.floor(this.time)}`, 10, 20);
+    
+    // 关卡
+    this.ctx.fillText(`STAGE ${this.level}`, this.canvas.width - 80, 20);
+  }
+  
+  update(dt) {
+    if(this.state !== 'PLAYING') return;
+    
+    // 更新时间
+    this.time -= dt / 1000;
+    if(this.time <= 0) {
+      this.time = 0;
+      this.playerDie();
+    }
+    
+    // 更新玩家
+    this.updatePlayer(dt);
+    
+    // 更新敌人
+    this.updateEnemies(dt);
+    
+    // 更新子弹
+    this.updateBullets(dt);
+    
+    // 更新道具
+    this.updatePowerups(dt);
+    
+    // 更新相机
+    this.cameraX = Math.max(0, this.player.x - 128);
+    this.cameraX = Math.min(this.cameraX, this.levelWidth - 256);
+    
+    // 检查关卡完成
+    if(this.player.x > this.levelWidth - 100) {
+      this.completeLevel();
+    }
+    
+    // 更新HUD
+    this.updateHUD();
+  }
+  
+  updatePlayer(dt) {
+    if(this.player.invincible > 0) this.player.invincible--;
+    
+    // 移动
+    this.player.speedX = 0;
+    if(this.keys['arrowleft'] || this.keys['a']) {
+      this.player.speedX = -2.5;
+      this.player.facing = -1;
+    }
+    if(this.keys['arrowright'] || this.keys['d']) {
+      this.player.speedX = 2.5;
+      this.player.facing = 1;
+    }
+    
+    // 趴下
+    this.player.isDucking = (this.keys['arrowdown'] || this.keys['s']) && !this.player.isJumping;
+    this.player.height = this.player.isDucking ? 8 : 16;
+    
+    // 跳跃
+    if((this.keys['arrowup'] || this.keys[' '] || this.keys['w']) && !this.player.isJumping) {
+      this.player.speedY = -5.0;
+      this.player.isJumping = true;
+    }
+    
+    // 重力
+    this.player.speedY += 0.3;
+    
+    // 新位置
+    let newX = this.player.x + this.player.speedX;
+    let newY = this.player.y + this.player.speedY;
+    
+    // 平台碰撞
+    let onGround = false;
+    for(const p of this.platforms) {
+      if(newX < p.x + p.width && newX + this.player.width > p.x &&
+         newY + this.player.height > p.y && this.player.y + this.player.height <= p.y + 5) {
+        newY = p.y - this.player.height;
+        this.player.speedY = 0;
+        this.player.isJumping = false;
+        onGround = true;
+        break;
+      }
+    }
+    
+    // 水域减速 (1600-1900)
+    if(newX > 1600 && newX < 1900 && newY > 190) {
+      this.player.speedX *= 0.6;
+    }
+    
+    // 应用位置
+    this.player.x = newX;
+    this.player.y = newY;
+    
+    // 边界检查
+    if(this.player.y > 240) {
+      this.playerDie();
+    }
+    
+    // 射击
+    if(this.player.shootCooldown > 0) this.player.shootCooldown--;
+    if((this.keys['z'] || this.keys['x']) && this.player.shootCooldown === 0) {
+      this.shoot();
+      this.player.shootCooldown = 10;
+      this.player.isShooting = true;
+      setTimeout(() => { this.player.isShooting = false; }, 100);
+    }
+  }
+  
+  shoot() {
+    const baseX = this.player.x + (this.player.facing === 1 ? 8 : -2);
+    const baseY = this.player.y + 6;
+    
+    if(this.weapon === 'NORMAL') {
+      this.bullets.push({
+        x: baseX, y: baseY, width:2, height:2,
+        speedX: this.player.facing * 6, speedY:0, type:this.weapon
+      });
+    } else if(this.weapon === 'M') {
+      this.bullets.push({
+        x: baseX, y: baseY, width:3, height:2,
+        speedX: this.player.facing * 7, speedY:0, type:this.weapon
+      });
+    } else if(this.weapon === 'S') {
+      // 5方向散射
+      for(let i = -2; i <= 2; i++) {
+        this.bullets.push({
+          x: baseX, y: baseY + i*2, width:2, height:2,
+          speedX: this.player.facing * 4, speedY:i*1.5, type:this.weapon
+        });
+      }
+    } else if(this.weapon === 'F') {
+      this.bullets.push({
+        x: baseX, y: baseY, width:4, height:4,
+        speedX: this.player.facing * 4, speedY:0, type:this.weapon
+      });
+    } else if(this.weapon === 'L') {
+      this.bullets.push({
+        x: baseX, y: baseY, width:8, height:2,
+        speedX: this.player.facing * 8, speedY:0, type:this.weapon
+      });
+    }
+  }
+  
+  playerDie() {
+    this.lives--;
+    this.updateHUD();
+    
+    if(this.lives <= 0) {
+      this.gameOver();
+      return;
+    }
+    
+    // 重生
+    this.player.x = Math.max(50, this.cameraX - 100);
+    this.player.y = 184;
+    this.player.invincible = 120;
+    this.player.speedX = 0;
+    this.player.speedY = 0;
+    this.player.isJumping = false;
+    this.weapon = 'NORMAL';
+  }
+  
+  updateEnemies(dt) {
+    for(let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      
+      // 移动 - 极慢速度
+      e.x += e.speedX;
+      
+      // 炮台射击 - 极低频率
+      if(e.type === 'cannon') {
+        e.shootTimer++;
+        if(e.shootTimer > 240) { // 极低频率：240帧（约4秒）
+          e.shootTimer = 0;
+          e.direction = Math.random() > 0.5 ? 1 : -1;
+          
+          // 发射炮弹 - 极慢速度
+          this.bullets.push({
+            x: e.x + (e.direction === 1 ? 12 : -4),
+            y: e.y + 4,
+            width:4, height:4,
+            speedX: e.direction * 1.5, // 极慢速度
+            speedY:0,
+            type:'ENEMY'
+          });
+        }
+      }
+      
+      // 子弹碰撞
+      for(let j = this.bullets.length - 1; j >= 0; j--) {
+        const b = this.bullets[j];
+        if(b.type !== 'ENEMY' && this.collision(b, e)) {
+          e.health--;
+          this.bullets.splice(j, 1);
+          
+          if(e.health <= 0) {
+            this.score += e.type === 'soldier' ? 100 : 200;
+            this.enemies.splice(i, 1);
+            break;
+          }
+        }
+      }
+      
+      // 玩家碰撞
+      if(this.collision(this.player, e) && this.player.invincible === 0) {
+        this.playerDie();
+      }
+      
+      // 移除
+      if(e.x < this.cameraX - 100) {
+        this.enemies.splice(i, 1);
+      }
+    }
+    
+    // 生成新敌人 - 极低生成频率
+    if(this.enemies.length < 4 && Math.random() < 0.001) { // 极低概率
+      const x = this.cameraX + 256 + 50;
+      const type = Math.random() < 0.8 ? 'soldier' : 'cannon'; // 大部分是士兵
+      this.enemies.push({
+        x:x, y: type === 'soldier' ? 188 : 192,
+        width:8, height: type === 'soldier' ? 12 : 8,
+        speedX: type === 'soldier' ? -0.3 : 0, // 极慢速度
+        type:type, health: type === 'soldier' ? 1 : 2, // 减少血量
+        shootTimer:0,
+        direction: Math.random() > 0.5 ? 1 : -1
+      });
+    }
+  }
+  
+  updateBullets(dt) {
+    for(let i = this.bullets.length - 1; i >= 0; i--) {
+      const b = this.bullets[i];
+      b.x += b.speedX;
+      b.y += b.speedY;
+      
+      // 地形碰撞
+      let hit = false;
+      for(const p of this.platforms) {
+        if(b.x < p.x + p.width && b.x + b.width > p.x &&
+           b.y < p.y + p.height && b.y + b.height > p.y) {
+          hit = true;
+          break;
+        }
+      }
+      
+      // 敌人子弹 vs 玩家
+      if(b.type === 'ENEMY' && this.collision(b, this.player) && this.player.invincible === 0) {
+        this.playerDie();
+        hit = true;
+      }
+      
+      // 移除
+      if(hit || b.x < this.cameraX - 50 || b.x > this.cameraX + 256 + 50 ||
+         b.y < -20 || b.y > 240 + 20) {
+        this.bullets.splice(i, 1);
+      }
+    }
+  }
+  
+  updatePowerups(dt) {
+    for(let i = this.powerups.length - 1; i >= 0; i--) {
+      const p = this.powerups[i];
+      p.blink++;
+      
+      // 玩家拾取
+      if(this.collision(this.player, p)) {
+        this.weapon = p.type;
+        this.powerups.splice(i, 1);
+        this.updateHUD();
+      }
+    }
+  }
+  
+  collision(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
+  }
+  
+  gameOver() {
+    this.state = 'GAMEOVER';
+    document.getElementById('gameOverScreen').style.display = 'flex';
+    document.getElementById('finalScore').textContent = `得分: ${this.score.toString().padStart(6,'0')}`;
+  }
+  
+  completeLevel() {
+    this.state = 'COMPLETE';
+    document.getElementById('completeScreen').style.display = 'flex';
+    document.getElementById('completeScore').textContent = `得分: ${this.score.toString().padStart(6,'0')}`;
+  }
+  
+  gameLoop(timestamp) {
+    const dt = timestamp - this.lastTime;
+    this.lastTime = timestamp;
+    
+    if(this.state === 'PLAYING') {
+      this.update(dt);
+    }
+    
+    this.draw();
+    
+    requestAnimationFrame((t) => this.gameLoop(t));
+  }
+}
+
+// 启动游戏
+window.addEventListener('load', () => {
+  new ContraGame();
+});
+</script>
+</body>
+</html>

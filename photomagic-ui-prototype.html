@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoMagic Studio - 智能图片处理平台</title>
+    <style>
+        /* 设计系统变量 */
+        :root {
+            /* 品牌色 */
+            --color-brand-50: #eff6ff;
+            --color-brand-100: #dbeafe;
+            --color-brand-500: #3b82f6;
+            --color-brand-600: #2563eb;
+            --color-brand-700: #1d4ed8;
+            
+            /* 功能色 */
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-error: #ef4444;
+            --color-info: #06b6d4;
+            
+            /* 中性色 */
+            --color-gray-50: #f9fafb;
+            --color-gray-100: #f3f4f6;
+            --color-gray-200: #e5e7eb;
+            --color-gray-300: #d1d5db;
+            --color-gray-400: #9ca3af;
+            --color-gray-500: #6b7280;
+            --color-gray-600: #4b5563;
+            --color-gray-700: #374151;
+            --color-gray-800: #1f2937;
+            --color-gray-900: #111827;
+            
+            /* 语义色 */
+            --bg-primary: var(--color-gray-50);
+            --text-primary: var(--color-gray-900);
+            --border-primary: var(--color-gray-200);
+            
+            /* 功能模块色 */
+            --bg-removal: #4f46e5;
+            --idphoto: #0d9488;
+            --bg-replace: #ea580c;
+            --restoration: #7c3aed;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* 导航栏 */
+        .navbar {
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 64px;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-brand-600);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .logo-icon {
+            font-size: 1.8rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            color: var(--color-gray-700);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--color-brand-600);
+        }
+        
+        .nav-links a.active {
+            color: var(--color-brand-600);
+        }
+        
+        .nav-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-size: 0.875rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--color-brand-600);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--color-brand-700);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background-color: white;
+            color: var(--color-gray-700);
+            border: 1px solid var(--color-gray-300);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--color-gray-50);
+            border-color: var(--color-gray-400);
+        }
+        
+        .btn-ghost {
+            background-color: transparent;
+            color: var(--color-gray-700);
+        }
+        
+        .btn-ghost:hover {
+            background-color: var(--color-gray-100);
+        }
+        
+        /* 英雄区域 */
+        .hero {
+            padding: 80px 0;
+            background: linear-gradient(135deg, var(--color-brand-50) 0%, white 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--color-gray-600);
+            margin-bottom: 32px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 48px;
+        }
+        
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-brand-600);
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            color: var(--color-gray-600);
+            font-size: 0.875rem;
+        }
+        
+        /* 功能区域 */
+        .features {
+            padding: 80px 0;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        
+        .section-subtitle {
+            text-align: center;
+            color: var(--color-gray-600);
+            font-size: 1.125rem;
+            max-width: 600px;
+            margin: 0 auto 48px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+            margin-bottom: 64px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid var(--color-gray-200);
+            text-align: center;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-color: var(--color-brand-200);
+        }
+        
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 28px;
+        }
+        
+        .feature-icon.bg-removal {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--bg-removal);
+        }
+        
+        .feature-icon.idphoto {
+            background-color: rgba(13, 148, 136, 0.1);
+            color: var(--idphoto);
+        }
+        
+        .feature-icon.bg-replace {
+            background-color: rgba(234, 88, 12, 0.1);
+            color: var(--bg-replace);
+        }
+        
+        .feature-icon.restoration {
+            background-color: rgba(124, 58, 237, 0.1);
+            color: var(--restoration);
+        }
+        
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .feature-description {
+            color: var(--color-gray-600);
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 24px;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            color: var(--color-gray-700);
+            position: relative;
+            padding-left: 24px;
+        }
+        
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--color-success);
+            font-weight: bold;
+        }
+        
+        /* 特点展示 */
+        .benefits {
+            padding: 80px 0;
+            background-color: var(--color-gray-50);
+        }
+        
+        .benefit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 32px;
+        }
+        
+        .benefit-card {
+            text-align: center;
+            padding: 32px 24px;
+        }
+        
+        .benefit-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .benefit-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .benefit-description {
+            color: var(--color-gray-600);
+        }
+        
+        /* 案例展示 */
+        .showcase {
+            padding: 80px 0;
+        }
+        
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+        }
+        
+        .showcase-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .showcase-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .showcase-image {
+            width: 100%;
+            height: 200px;
+            background-color: var(--color-gray-100);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .image-before, .image-after {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: opacity 0.3s;
+        }
+        
+        .image-before {
+            opacity: 1;
+        }
+        
+        .image-after {
+            opacity: 0;
+        }
+        
+        .showcase-card:hover .image-before {
+            opacity: 0;
+        }
+        
+        .showcase-card:hover .image-after {
+            opacity: 1;
+        }
+        
+        .showcase-content {
+            padding: 24px;
+        }
+        
+        .showcase-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .showcase-description {
+            color: var(--color-gray-600);
+            font-size: 0.875rem;
+        }
+        
+        /* FAQ区域 */
+        .faq {
+            padding: 80px 0;
+            background-color: var(--color-gray-50);
+        }
+        
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .faq-item {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .faq-question {
+            padding: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .faq-question:hover {
+            background-color: var(--color-gray-50);
+        }
+        
+        .faq-answer {
+            padding: 0 20px 20px;
+            color: var(--color-gray-600);
+            display: none;
+        }
+        
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+        
+        .faq-toggle {
+            transition: transform 0.3s;
+        }
+        
+        .faq-item.active .faq-toggle {
+            transform: rotate(180deg);
+        }
+        
+        /* 页脚 */
+        .footer {
+            background-color: var(--color-gray-900);
+            color: white;
+            padding: 64px 0 32px;
+        }
+        
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+        
+        .footer-section h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .footer-links {
+            list-style: none;
+        }
+        
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+        
+        .footer-links a {
+            color: var(--color-gray-400);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 32px;
+            border-top: 1px solid var(--color-gray-800);
+            color: var(--color-gray-400);
+            font-size: 0.875rem;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .hero-actions .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .section-title {
+                font-size: 2rem;
+            }
+        }
+        
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--color-gray-900);
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+        }
+        
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* 加载状态 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--color-gray-300);
+            border-top-color: var(--color-brand-600);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 进度条 */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: var(--color-gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--color-brand-600);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        /* 徽章 */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-new {
+            background-color: var(--color-success);
+            color: white;
+        }
+        
+        .badge-popular {
+            background-color: var(--color-brand-600);
+            color: white;
+        }
+        
+        .badge-pro {
+            background-color: var(--color-warning);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="#" class="logo">
+                <span class="logo-icon">🎨</span>
+                PhotoMagic Studio
+            </a>
+            
+            <ul class="nav-links">
+                <li><a href="#" class="active">首页</a></li>
+                <li><a href="#">功能</a></li>
+                <li><a href="#">案例</a></li>
+                <li><a href="#">定价</a></li>
+                <li><a href="#">帮助</a></li>
+            </ul>
+            
+            <div class="nav-actions">
+                <a href="#" class="btn btn-ghost">登录</a>
+                <a href="#" class="btn btn-primary">免费开始</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 英雄区域 -->
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="badge badge-new">新功能上线</div>
+            <h1>智能图片处理，一键搞定</h1>
+            <p class="hero-subtitle">
+                PhotoMagic Studio 提供专业的AI图片处理服务，包括背景移除、证件照制作、背景替换和老照片修复等功能。
+                无需专业技能，轻松获得专业效果。
+            </p>
+            
+            <div class="hero-actions">
+                <a href="#" class="btn btn-primary">开始免费使用</a>
+                <a href="#" class="btn btn-secondary">查看演示视频</a>
+            </div>
+            
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-number">500K+</div>
+                    <div class="stat-label">处理过的图片</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">99.8%</div>
+                    <div class="stat-label">用户满意度</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">国家和地区</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">在线服务</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 功能区域 -->
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">核心功能</h2>
+            <p class="section-subtitle">
+                四大核心功能，满足你的所有图片处理需求。从简单的背景移除到专业的证件照制作，我们都能提供最佳解决方案。
+            </p>
+            
+            <div class="feature-grid">
+                <!-- 背景移除功能 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-removal">✂️</div>
+                    <h3 class="feature-title">背景移除</h3>
+                    <p class="feature-description">
+                        快速移除图片背景，生成透明PNG。支持复杂背景和毛发边缘处理。
+                    </p>
+                    <ul class="feature-list">
+                        <li>AI智能识别边缘</li>
+                        <li>支持复杂背景</li>
+                        <li>批量处理功能</li>
+                        <li>高质量透明PNG</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">开始使用</a>
+                </div>
+                
+                <!-- 证件照制作 -->
+                <div class="feature-card">
+                    <div class="feature-icon idphoto">📷</div>
+                    <h3 class="feature-title">证件照制作</h3>
+                    <p class="feature-description">
+                        专业证件照制作，支持多种标准尺寸和背景颜色。满足各种证件需求。
+                    </p>
+                    <ul class="feature-list">
+                        <li>多国证件标准</li>
+                        <li>智能尺寸调整</li>
+                        <li>专业背景替换</li>
+                        <li>一键打印输出</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">开始使用</a>
+                </div>
+                
+                <!-- 背景替换 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-replace">🎭</div>
+                    <h3 class="feature-title">背景替换</h3>
+                    <p class="feature-description">
+                        智能替换图片背景，提供多种场景模板。自然融合，效果逼真。
+                    </p>
+                    <ul class="feature-list">
+                        <li>丰富背景模板</li>
+                        <li>智能光影匹配</li>
+                        <li>自然边缘融合</li>
+                        <li>实时预览效果</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">开始使用</a>
+                </div>
+                
+                <!-- 老照片修复 -->
+                <div class="feature-card">
+                    <div class="feature-icon restoration">🕰️</div>
+                    <h3 class="feature-title">老照片修复</h3>
+                    <p class="feature-description">
+                        修复破损老照片，还原色彩细节。让珍贵回忆重现光彩。
+                    </p>
+                    <ul class="feature-list">
+                        <li>破损修复</li>
+                        <li>色彩还原</li>
+                        <li>细节增强</li>
+                        <li>画质提升</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">开始使用</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 特点展示 -->
+    <section class="benefits">
+        <div class="container">
+            <h2 class="section-title">为什么选择我们？</h2>
+            <p class="section-subtitle">
+                我们致力于提供最好的图片处理体验，让每个人都能轻松获得专业效果。
+            </p>
+            
+            <div class="benefit-grid">
+                <div class="benefit-card">
+                    <div class="benefit-icon">🚀</div>
+                    <h3 class="benefit-title">快速处理</h3>
+                    <p class="benefit-description">
+                        秒级响应，无需等待。即使是高清图片也能快速处理完成。
+                    </p>
+                </div>
+                
+                <div class="benefit-card">
+                    <div class="benefit-icon">🤖</div>
+                    <h3 class="benefit-title">AI智能</h3>
+                    <p class="benefit-description">
+                        先进的AI算法，智能识别图片内容，自动优化处理效果。
+                    </p>
+                </div>
+                
+                <div class="benefit-card">
+                    <div class="benefit-icon">🎨</div>
+                    <h3 class="benefit-title">专业效果</h3>
+                    <p class="benefit-description">
+                        专业级处理效果，细节保留完整，满足商业使用需求。
+                    </p>
+                </div>
+                
+                <div class="benefit-card">
+                    <div class="benefit-icon">🔒</div>
+                    <h3 class="benefit-title">隐私安全</h3>
+                    <p class="benefit-description">
+                        端到端加密，处理完成后自动删除，保护您的隐私安全。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 案例展示 -->
+    <section class="showcase">
+        <div class="container">
+            <h2 class="section-title">用户案例展示</h2>
+            <p class="section-subtitle">
+                看看其他用户如何使用 PhotoMagic Studio 处理他们的图片。
+            </p>
+            
+            <div class="showcase-grid">
+                <div class="showcase-card">
+                    <div class="showcase-image">
+                        <div class="image-before" style="background-color: #f3f4f6;"></div>
+                        <div class="image-after" style="background-color: #dbeafe;"></div>
+                    </div>
+                    <div class="showcase-content">
+                        <h3 class="showcase-title">电商产品图</h3>
+                        <p class="showcase-description">
+                            为电商平台制作干净的产品图片，提升转化率。
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="showcase-card">
+                    <div class="showcase-image">
+                        <div class="image-before" style="background-color: #fee2e2;"></div>
+                        <div class="image-after" style="background-color: #dcfce7;"></div>
+                    </div>
+                    <div class="showcase-content">
+                        <h3 class="showcase-title">证件照制作</h3>
+                        <p class="showcase-description">
+                            制作专业证件照，满足签证、护照等需求。
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="showcase-card">
+                    <div class="showcase-image">
+                        <div class="image-before" style="background-color: #fef3c7;"></div>
+                        <div class="image-after" style="background-color: #e0f2fe;"></div>
+                    </div>
+                    <div class="showcase-content">
+                        <h3 class="showcase-title">老照片修复</h3>
+                        <p class="showcase-description">
+                            修复家庭老照片，让珍贵回忆重现光彩。
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="showcase-card">
+                    <div class="showcase-image">
+                        <div class="image-before" style="background-color: #f3e8ff;"></div>
+                        <div class="image-after" style="background-color: #f0f9ff;"></div>
+                    </div>
+                    <div class="showcase-content">
+                        <h3 class="showcase-title">创意设计</h3>
+                        <p class="showcase-description">
+                            为设计师提供高质量的图片处理服务。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ区域 -->
+    <section class="faq">
+        <div class="container">
+            <h2 class="section-title">常见问题</h2>
+            <p class="section-subtitle">
+                如果你有更多问题，请查看我们的完整帮助文档。
+            </p>
+            
+            <div class="faq-container">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>如何处理图片？</span>
+                        <span class="faq-toggle">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>只需三步：1. 上传图片 2. 选择功能和处理选项 3. 下载处理结果。整个过程简单直观，无需专业技能。</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>支持哪些图片格式？</span>
+                        <span class="faq-toggle">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>我们支持 JPG、PNG、WebP 格式的图片，最大支持 10MB 的文件大小。输出格式包括 PNG、JPG 和 WebP。</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>图片会被保存吗？</span>
+                        <span class="faq-toggle">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>不会。所有图片在处理完成后会自动删除，我们不会保存您的图片。您的隐私安全是我们的首要考虑。</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>有免费额度吗？</span>
+                        <span class="faq-toggle">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>是的，我们提供每月 10 张图片的免费处理额度。如果需要更多，可以选择我们的付费套餐。</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>处理效果如何保证？</span>
+                        <span class="faq-toggle">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>我们使用先进的AI算法，处理效果达到专业水平。如果不满意，可以随时调整参数重新处理。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h3>PhotoMagic Studio</h3>
+                    <p style="color: var(--color-gray-400); margin-bottom: 20px;">
+                        智能图片处理平台，让每个人都能轻松获得专业效果。
+                    </p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>产品</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">背景移除</a></li>
+                        <li><a href="#">证件照制作</a></li>
+                        <li><a href="#">背景替换</a></li>
+                        <li><a href="#">老照片修复</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>支持</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">帮助中心</a></li>
+                        <li><a href="#">常见问题</a></li>
+                        <li><a href="#">联系我们</a></li>
+                        <li><a href="#">服务状态</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>法律</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">隐私政策</a></li>
+                        <li><a href="#">使用条款</a></li>
+                        <li><a href="#">Cookie政策</a></li>
+                        <li><a href="#">服务协议</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>© 2026 PhotoMagic Studio. 保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // FAQ交互
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const item = question.parentElement;
+                item.classList.toggle('active');
+            });
+        });
+        
+        // 模拟进度条
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        progressBar.innerHTML = '<div class="progress-fill" style="width: 75%"></div>';
+        
+        // 添加工具提示
+        const tooltipElements = document.querySelectorAll('.tooltip');
+        tooltipElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                el.setAttribute('data-tooltip', el.getAttribute('title'));
+                el.removeAttribute('title');
+            });
+            
+            el.addEventListener('mouseleave', () => {
+                el.setAttribute('title', el.getAttribute('data-tooltip'));
+                el.removeAttribute('data-tooltip');
+            });
+        });
+        
+        // 响应式导航菜单
+        const navToggle = document.createElement('button');
+        navToggle.className = 'nav-toggle';
+        navToggle.innerHTML = '☰';
+        navToggle.style.cssText = 'display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer;';
+        
+        const navLinks = document.querySelector('.nav-links');
+        const navContainer = document.querySelector('.nav-container');
+        
+        // 检查窗口大小
+        function checkWindowSize() {
+            if (window.innerWidth <= 768) {
+                navToggle.style.display = 'block';
+                navLinks.style.display = 'none';
+                navContainer.insertBefore(navToggle, navLinks);
+            } else {
+                navToggle.style.display = 'none';
+                navLinks.style.display = 'flex';
+            }
+        }
+        
+        // 初始检查
+        checkWindowSize();
+        
+        // 窗口大小变化时检查
+        window.addEventListener('resize', checkWindowSize);
+        
+        // 切换导航菜单
+        navToggle.addEventListener('click', () => {
+            if (navLinks.style.display === 'flex') {
+                navLinks.style.display = 'none';
+            } else {
+                navLinks.style.display = 'flex';
+                navLinks.style.flexDirection = 'column';
+                navLinks.style.position = 'absolute';
+                navLinks.style.top = '64px';
+                navLinks.style.left = '0';
+                navLinks.style.right = '0';
+                navLinks.style.backgroundColor = 'white';
+                navLinks.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                navLinks.style.padding = '20px';
+            }
+        });
+        
+        console.log('PhotoMagic Studio UI 原型已加载');
+    </script>
+</body>
+</html>
