@@ -1,0 +1,18 @@
+{
+  "build": {
+    "command": "./build.sh",
+    "output_dir": "photomagic/frontend/dist",
+    "root_dir": "/"
+  },
+  "environment_variables": {
+    "NODE_VERSION": "18",
+    "NODE_ENV": "production"
+  },
+  "routes": [
+    {
+      "pattern": "/*",
+      "file": "photomagic/frontend/dist/index.html",
+      "status": 200
+    }
+  ]
+}
