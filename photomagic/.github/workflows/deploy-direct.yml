@@ -1,0 +1,49 @@
+name: Build and Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: photomagic/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: photomagic/frontend
+        run: |
+          npm ci --no-audit --no-fund
+          echo "Dependencies installed successfully"
+
+      - name: Build
+        working-directory: photomagic/frontend
+        run: |
+          npm run build
+          echo "Build completed"
+          ls -la dist/
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 'photomagic-studio'
+          directory: 'photomagic/frontend/dist'
+          # 使用已经构建好的目录，不触发 Cloudflare 构建
+          # 这样完全绕过 Cloudflare 的构建系统
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Success notification
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo "Your site should be live in a few minutes."
