@@ -1,0 +1,35 @@
+# Cloudflare Pages 配置文件
+# 放置在项目根目录
+
+name: photomagic-studio
+production_branch: main
+
+build:
+  command: cd photomagic/frontend && npm install && npm run build
+  output_dir: photomagic/frontend/dist
+  root_dir: /
+
+environment_variables:
+  NODE_VERSION: "18"
+  NODE_ENV: "production"
+
+headers:
+  - path: /*
+    headers:
+      - key: X-Frame-Options
+        value: DENY
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+redirects:
+  - from: /api/*
+    to: https://api.example.com/:splat
+    status: 301
+
+# 路由配置
+routes:
+  - pattern: /*
+    file: /photomagic/frontend/dist/index.html
+    status: 200
