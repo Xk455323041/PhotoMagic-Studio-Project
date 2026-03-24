@@ -17,6 +17,9 @@ build:
 vars:
   NODE_VERSION: "18"
   NODE_ENV: "production"
+  # API_URL: "https://api.example.com"
+  # SENTRY_DSN: "your-sentry-dsn"
+  # ANALYTICS_ID: "UA-XXXXX-Y"
 
 # 路由配置
 routes:

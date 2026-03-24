@@ -20,10 +20,13 @@ pattern = "photomagic-studio.pages.dev/*"
 zone_name = "pages.dev"
 custom_domain = false
 
-# 环境变量示例（需要在 Cloudflare Dashboard 中设置）
-# [vars]
-# NODE_VERSION = "18"
-# API_URL = "https://api.example.com"
+# 环境变量配置
+[vars]
+NODE_VERSION = "18"
+NODE_ENV = "production"
+# API_BASE_URL = "https://api.example.com"  # 你的后端 API 地址
+# SENTRY_DSN = "your-sentry-dsn"
+# GOOGLE_ANALYTICS_ID = "UA-XXXXX-Y"
 
 # 部署配置
 [deployment]

@@ -4,14 +4,16 @@
 
 import { ServiceConfig, defaultServiceConfig } from './serviceGateway'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { envConfig } from '@/config/env'
 
 export class ServiceConfigManager {
   private static instance: ServiceConfigManager
   private config: ServiceConfig
 
   private constructor() {
-    // 从本地存储加载配置
+    // 从本地存储加载配置，并合并环境变量
     this.config = this.loadConfig()
+    this.applyEnvironmentConfig()
   }
 
   static getInstance(): ServiceConfigManager {
@@ -36,6 +38,37 @@ export class ServiceConfigManager {
     }
     
     return { ...defaultServiceConfig }
+  }
+
+  /**
+   * 应用环境变量配置
+   */
+  private applyEnvironmentConfig(): void {
+    const envUpdates: Partial<ServiceConfig> = {}
+
+    // 从环境变量读取火山引擎配置
+    if (envConfig.services.volcengine.accessKey && envConfig.services.volcengine.secretKey) {
+      envUpdates.volcengine = {
+        ...this.config.volcengine,
+        accessKeyId: envConfig.services.volcengine.accessKey,
+        secretAccessKey: envConfig.services.volcengine.secretKey,
+        enabled: true,
+      }
+    }
+
+    // 应用环境配置
+    if (Object.keys(envUpdates).length > 0) {
+      this.config = { ...this.config, ...envUpdates }
+    }
+
+    // 根据环境自动设置配置
+    if (envConfig.isProduction) {
+      this.applyEnvironment('production')
+    } else if (envConfig.environment === 'staging') {
+      this.applyEnvironment('staging')
+    } else {
+      this.applyEnvironment('development')
+    }
   }
 
   /**
