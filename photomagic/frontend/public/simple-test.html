@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>基本功能测试</h1>
+    
+    <div>
+        <button onclick="testBasic()">测试基本JavaScript</button>
+        <button onclick="testAPI()">测试API连接</button>
+    </div>
+    
+    <div id="status">等待测试...</div>
+    
+    <script>
+        function testBasic() {
+            document.getElementById('status').innerHTML = 
+                '<span style="color: green">✅ 基本JavaScript功能正常</span><br>' +
+                '时间: ' + new Date().toLocaleTimeString();
+            console.log('基本JavaScript测试通过');
+        }
+        
+        function testAPI() {
+            document.getElementById('status').innerHTML = '正在测试API连接...';
+            
+            fetch('http://101.32.246.47:3002/api/v1/health')
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('API响应错误: ' + response.status);
+                })
+                .then(data => {
+                    document.getElementById('status').innerHTML = 
+                        '<span style="color: green">✅ API连接正常</span><br>' +
+                        '状态: ' + data.status + '<br>' +
+                        '版本: ' + data.version;
+                    console.log('API测试通过:', data);
+                })
+                .catch(error => {
+                    document.getElementById('status').innerHTML = 
+                        '<span style="color: red">❌ API连接失败</span><br>' +
+                        '错误: ' + error.message;
+                    console.error('API测试失败:', error);
+                });
+        }
+        
+        // 页面加载完成
+        console.log('简单测试页面加载完成');
+        document.getElementById('status').innerHTML = 
+            '页面加载完成，请点击按钮测试';
+    </script>
+</body>
+</html>

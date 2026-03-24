@@ -76,7 +76,28 @@ const PhotoRestorationPage: React.FC = () => {
   }
 
   const handleDownload = () => {
-    alert('开始下载修复后的照片')
+    if (!processed) {
+      alert('请先修复照片')
+      return
+    }
+    
+    // 模拟下载功能
+    const mockFileName = `photo_restored_${Date.now()}.png`
+    const mockFileUrl = URL.createObjectURL(
+      new Blob(['mock restored photo'], { type: 'image/png' })
+    )
+    
+    const link = document.createElement('a')
+    link.href = mockFileUrl
+    link.download = mockFileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // 清理URL对象
+    URL.revokeObjectURL(mockFileUrl)
+    
+    alert('下载开始')
   }
 
   const handleReset = () => {

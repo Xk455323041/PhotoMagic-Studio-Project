@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Camera, Ruler, Palette, Download, Printer, Globe, CheckCircle, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import FileUpload from '@/components/upload/FileUpload'
+import { apiService } from '@/services/api'
+import toast from 'react-hot-toast'
 
 const IdPhotoPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -9,6 +11,7 @@ const IdPhotoPage: React.FC = () => {
   const [selectedSize, setSelectedSize] = useState('1inch')
   const [backgroundColor, setBackgroundColor] = useState('#3b82f6')
   const [processing, setProcessing] = useState(false)
+  const [processedResult, setProcessedResult] = useState<{ url: string; filename: string } | null>(null)
 
   // 国家证件照规格
   const countrySpecs = {
@@ -56,18 +59,103 @@ const IdPhotoPage: React.FC = () => {
     setUploadedFile(file)
   }
 
-  const handleProcess = () => {
-    if (!uploadedFile) return
+  const handleProcess = async () => {
+    if (!uploadedFile) {
+      toast.error('请先上传照片')
+      return
+    }
     
     setProcessing(true)
-    // 模拟处理过程
-    setTimeout(() => {
+    setProcessedResult(null)
+    
+    try {
+      // 1. 上传文件
+      toast.loading('正在上传照片...')
+      const uploadResult = await apiService.uploadFile(
+        uploadedFile,
+        'id_photo',
+        '证件照处理'
+      )
+      toast.dismiss()
+      toast.success('照片上传成功')
+      
+      // 2. 处理证件照
+      toast.loading('正在生成证件照...')
+      
+      // 根据选择的规格构建参数
+      const selectedSizeObj = countrySpecs[selectedCountry as keyof typeof countrySpecs]
+        .sizes.find(s => s.id === selectedSize)
+      
+      const params = {
+        photo_type: 'id_card',
+        background: {
+          type: 'solid',
+          color: backgroundColor
+        },
+        size: {
+          type: selectedSizeObj?.name.includes('寸') ? 'custom' : 'standard',
+          dpi: selectedSizeObj?.dpi || 300
+        },
+        portrait: {
+          position: 'center',
+          zoom: 1,
+          beauty: {
+            enabled: true,
+            skin_smooth: 70,
+            eye_brighten: 60,
+            teeth_whiten: 50
+          }
+        },
+        output: {
+          format: 'png',
+          quality: 95,
+          layout: 'single'
+        }
+      }
+      
+      const result = await apiService.idPhotoProcessing(uploadResult.file_id, params)
+      toast.dismiss()
+      toast.success('证件照生成成功')
+      
+      // 3. 保存处理结果
+      setProcessedResult({
+        url: result.url,
+        filename: `证件照_${Date.now()}.png`
+      })
+      
+    } catch (error: any) {
+      toast.dismiss()
+      toast.error(error.message || '处理失败，请重试')
+      console.error('证件照处理失败:', error)
+    } finally {
       setProcessing(false)
-    }, 3000)
+    }
   }
 
   const handlePrintLayout = () => {
-    alert('生成打印布局')
+    toast.success('打印布局功能开发中...')
+  }
+
+  const handleDownload = () => {
+    if (!processedResult) {
+      toast.error('请先生成证件照')
+      return
+    }
+    
+    try {
+      // 创建下载链接
+      const link = document.createElement('a')
+      link.href = processedResult.url
+      link.download = processedResult.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast.success('下载开始')
+    } catch (error) {
+      toast.error('下载失败，请重试')
+      console.error('下载失败:', error)
+    }
   }
 
   return (
@@ -309,8 +397,18 @@ const IdPhotoPage: React.FC = () => {
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">预览</h3>
             
-            <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center mb-4">
-              {uploadedFile ? (
+            <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center mb-4 overflow-hidden">
+              {processedResult ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center p-4">
+                    <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
+                      <CheckCircle className="h-8 w-8 text-green-600" />
+                    </div>
+                    <p className="font-medium text-gray-900">证件照已生成</p>
+                    <p className="text-sm text-gray-600">点击下方按钮下载</p>
+                  </div>
+                </div>
+              ) : uploadedFile ? (
                 <div className="text-center p-4">
                   <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
                     <Camera className="h-8 w-8 text-purple-600" />
@@ -387,7 +485,8 @@ const IdPhotoPage: React.FC = () => {
                 size="lg"
                 fullWidth
                 leftIcon={<Download className="h-5 w-5" />}
-                disabled={!uploadedFile}
+                onClick={handleDownload}
+                disabled={!processedResult}
               >
                 下载图片
               </Button>

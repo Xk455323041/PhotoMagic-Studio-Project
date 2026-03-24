@@ -1,13 +1,21 @@
 import React from 'react'
-import { Image as ImageIcon, CheckCircle, XCircle, ZoomIn } from 'lucide-react'
+import { Image as ImageIcon, CheckCircle, XCircle, ZoomIn, Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import toast from 'react-hot-toast'
 
 interface ResultPreviewProps {
   originalFile: File
   onDownload: () => void
+  processedFileUrl?: string
+  processedFileName?: string
 }
 
-const ResultPreview: React.FC<ResultPreviewProps> = ({ originalFile, onDownload }) => {
+const ResultPreview: React.FC<ResultPreviewProps> = ({ 
+  originalFile, 
+  onDownload,
+  processedFileUrl,
+  processedFileName = 'processed_image.png'
+}) => {
   const [showComparison, setShowComparison] = React.useState(true)
   const [comparisonPosition, setComparisonPosition] = React.useState(50)
 
@@ -201,6 +209,48 @@ const ResultPreview: React.FC<ResultPreviewProps> = ({ originalFile, onDownload 
             </div>
           ))}
         </div>
+      </div>
+
+      {/* 下载按钮 */}
+      <div className="rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900 mb-1">下载处理结果</h4>
+            <p className="text-sm text-gray-600">
+              点击下方按钮下载处理后的图片
+            </p>
+          </div>
+          
+          <Button
+            variant="primary"
+            leftIcon={<Download className="h-5 w-5" />}
+            onClick={() => {
+              if (processedFileUrl) {
+                // 创建下载链接
+                const link = document.createElement('a')
+                link.href = processedFileUrl
+                link.download = processedFileName
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                toast.success('下载开始')
+              } else {
+                onDownload()
+              }
+            }}
+            disabled={!processedFileUrl}
+          >
+            下载图片
+          </Button>
+        </div>
+        
+        {processedFileUrl && (
+          <div className="mt-4 text-sm text-gray-500">
+            <p>文件名: <span className="font-medium">{processedFileName}</span></p>
+            <p>格式: PNG (透明背景)</p>
+            <p>大小: {(processedFileInfo.size / 1024 / 1024).toFixed(2)} MB</p>
+          </div>
+        )}
       </div>
     </div>
   )

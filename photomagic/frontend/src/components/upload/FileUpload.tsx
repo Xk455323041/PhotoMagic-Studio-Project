@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react'
-import { Upload, X, Image as ImageIcon, File } from 'lucide-react'
+import { Upload, X, Image as ImageIcon, File, CheckCircle } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { cn } from '@/utils/cn'
+import toast from 'react-hot-toast'
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void
@@ -18,6 +19,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [error, setError] = useState<string>('')
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
 
   const onDrop = useCallback(
     (acceptedFiles: File[], rejectedFiles: any[]) => {
@@ -35,7 +37,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
       }
 
       if (acceptedFiles.length > 0) {
-        onFileUpload(acceptedFiles[0])
+        const file = acceptedFiles[0]
+        onFileUpload(file)
+        setUploadSuccess(true)
+        
+        // 显示成功提示
+        toast.success(`"${file.name}" 上传成功`, {
+          duration: 3000,
+          icon: '✅',
+        })
+        
+        // 3秒后重置成功状态
+        setTimeout(() => {
+          setUploadSuccess(false)
+        }, 3000)
       }
     },
     [onFileUpload, maxSize]
@@ -86,7 +101,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
               error && 'bg-red-100'
             )}
           >
-            {isDragActive ? (
+            {uploadSuccess ? (
+              <CheckCircle className="h-8 w-8 animate-pulse text-green-600" />
+            ) : isDragActive ? (
               <Upload className="h-8 w-8 animate-bounce text-brand-600" />
             ) : error ? (
               <X className="h-8 w-8 text-red-600" />
@@ -97,14 +114,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
           <div className="mb-2">
             <p className="text-sm font-medium text-gray-900">
-              {isDragActive
+              {uploadSuccess
+                ? '上传成功'
+                : isDragActive
                 ? '松开鼠标上传文件'
                 : error
                 ? '上传失败'
                 : '拖放文件到这里'}
             </p>
             <p className="mt-1 text-sm text-gray-500">
-              {isDragActive
+              {uploadSuccess
+                ? '文件已准备就绪'
+                : isDragActive
                 ? '将文件拖放到此区域'
                 : error
                 ? error

@@ -10,25 +10,43 @@ const BackgroundRemovalPage: React.FC = () => {
   const [processing, setProcessing] = useState(false)
   const [processed, setProcessed] = useState(false)
   const [processingTime, setProcessingTime] = useState(0)
+  const [processedResult, setProcessedResult] = useState<{ url: string; filename: string } | null>(null)
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
     setProcessed(false)
   }
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
     if (!uploadedFile) return
     
     setProcessing(true)
     const startTime = Date.now()
     
-    // 模拟处理过程
-    setTimeout(() => {
+    try {
+      // 模拟处理过程
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
       const endTime = Date.now()
       setProcessingTime(endTime - startTime)
       setProcessing(false)
       setProcessed(true)
-    }, 2000)
+      
+      // 创建模拟的处理结果
+      const processedFileName = `processed_${uploadedFile.name.replace(/\.[^/.]+$/, '')}.png`
+      const mockProcessedUrl = URL.createObjectURL(
+        new Blob(['mock processed image'], { type: 'image/png' })
+      )
+      
+      setProcessedResult({
+        url: mockProcessedUrl,
+        filename: processedFileName
+      })
+      
+    } catch (error) {
+      console.error('处理失败:', error)
+      setProcessing(false)
+    }
   }
 
   const handleDownload = () => {
@@ -177,6 +195,8 @@ const BackgroundRemovalPage: React.FC = () => {
               <ResultPreview
                 originalFile={uploadedFile!}
                 onDownload={handleDownload}
+                processedFileUrl={processedResult?.url}
+                processedFileName={processedResult?.filename}
               />
               
               <div className="mt-6">

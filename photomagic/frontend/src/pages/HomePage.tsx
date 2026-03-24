@@ -1,5 +1,4 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 import { 
   Scissors, 
   Camera, 
@@ -17,28 +16,28 @@ import { Button } from '@/components/ui/Button'
 const HomePage: React.FC = () => {
   const features = [
     {
-      icon: <Scissors className="h-6 w-6" />,
+      icon: <Scissors className="h-12 w-12" />,
       title: '背景移除',
       description: '快速移除图片背景，生成透明PNG。支持复杂背景和毛发边缘处理。',
       link: '/background-removal',
       color: 'from-blue-500 to-cyan-500',
     },
     {
-      icon: <Camera className="h-6 w-6" />,
+      icon: <Camera className="h-12 w-12" />,
       title: '证件照制作',
       description: '专业证件照制作工具，支持各国标准规格，一键生成打印版。',
       link: '/id-photo',
       color: 'from-purple-500 to-pink-500',
     },
     {
-      icon: <Image className="h-6 w-6" />,
+      icon: <Image className="h-12 w-12" />,
       title: '背景替换',
       description: '智能替换图片背景，支持自定义背景和AI推荐场景。',
       link: '/background-replace',
       color: 'from-green-500 to-emerald-500',
     },
     {
-      icon: <Clock className="h-6 w-6" />,
+      icon: <Clock className="h-12 w-12" />,
       title: '老照片修复',
       description: 'AI智能修复老照片，去除折痕、划痕、污渍，恢复色彩和清晰度。',
       link: '/photo-restoration',
@@ -95,30 +94,44 @@ const HomePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
           {features.map((feature, index) => (
-            <Link
+            <a
               key={index}
-              to={feature.link}
-              className="group block rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1"
+              href={feature.link}
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-gray-50 p-8 shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]"
             >
-              <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${feature.color} text-white`}>
-                {feature.icon}
+              {/* 背景装饰 */}
+              <div className="absolute inset-0 opacity-10">
+                <div className={`absolute inset-0 bg-gradient-to-br ${feature.color}`} />
               </div>
               
-              <h3 className="mb-2 text-lg font-semibold text-gray-900">
+              {/* 按钮图标 - 大尺寸 */}
+              <div className={`relative mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.color} shadow-lg`}>
+                <div className="text-white">
+                  {feature.icon}
+                </div>
+              </div>
+              
+              {/* 按钮名称 */}
+              <h3 className="relative mb-3 text-xl font-bold text-gray-900">
                 {feature.title}
               </h3>
               
-              <p className="mb-4 text-sm text-gray-600">
+              {/* 功能说明 */}
+              <p className="relative mb-6 text-sm text-gray-600 leading-relaxed">
                 {feature.description}
               </p>
               
-              <div className="inline-flex items-center text-sm font-medium text-brand-600 group-hover:text-brand-700">
-                立即使用
-                <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              {/* 使用提示 */}
+              <div className="relative inline-flex items-center text-sm font-semibold text-brand-600 group-hover:text-brand-700">
+                <span className="mr-2">开始使用</span>
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-2" />
               </div>
-            </Link>
+              
+              {/* 悬停效果 */}
+              <div className={`absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-gradient-to-br ${feature.color} opacity-0 transition-opacity duration-300 group-hover:opacity-10`} />
+            </a>
           ))}
         </div>
       </section>

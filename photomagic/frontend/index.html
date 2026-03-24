@@ -4,7 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>PhotoMagic Studio</title>
+    <!-- 修复React DevTools钩子冲突 -->
+    <script>
+      // 保存原始的React DevTools钩子
+      const originalHook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+      
+      // 如果钩子已经被垫片，尝试修复
+      if (originalHook && typeof originalHook === 'object') {
+        // 检查是否是有效的React DevTools钩子
+        const isValidHook = originalHook.inject && originalHook.on;
+        
+        if (!isValidHook) {
+          console.warn('检测到被垫片的React DevTools钩子，正在尝试修复...');
+          
+          // 尝试清理无效的钩子
+          try {
+            delete window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+            console.log('已清理无效的React DevTools钩子');
+          } catch (e) {
+            console.error('清理React DevTools钩子失败:', e);
+          }
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

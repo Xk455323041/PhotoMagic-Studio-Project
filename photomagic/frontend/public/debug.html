@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Debug Diagnostic</h1>
+    
+    <div class="test">
+        <h3>Test 1: Basic HTML</h3>
+        <p>If you can see this text, HTML is working.</p>
+        <p class="success">✅ HTML is working</p>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: Basic JavaScript</h3>
+        <button onclick="testJS()">Test JavaScript</button>
+        <div id="js-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 3: Console Check</h3>
+        <button onclick="checkConsole()">Check Console</button>
+        <div id="console-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 4: React App Check</h3>
+        <div id="root"></div>
+        <button onclick="loadReact()">Try Load React</button>
+        <div id="react-result"></div>
+    </div>
+    
+    <script>
+        // Test 2: Basic JavaScript
+        function testJS() {
+            document.getElementById('js-result').innerHTML = 
+                '<p class="success">✅ JavaScript is working</p>' +
+                '<p>Time: ' + new Date().toLocaleTimeString() + '</p>';
+            console.log('Basic JavaScript test passed');
+        }
+        
+        // Test 3: Console check
+        function checkConsole() {
+            console.log('Console test message');
+            console.error('Console error test message');
+            console.warn('Console warning test message');
+            
+            document.getElementById('console-result').innerHTML = 
+                '<p class="success">✅ Console messages sent</p>' +
+                '<p>Check browser console (F12 → Console tab)</p>';
+        }
+        
+        // Test 4: Try to load React
+        function loadReact() {
+            const resultDiv = document.getElementById('react-result');
+            resultDiv.innerHTML = '<p>Loading React...</p>';
+            
+            // Try to load React from CDN
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/react@18/umd/react.development.js';
+            script.onload = function() {
+                resultDiv.innerHTML = 
+                    '<p class="success">✅ React loaded successfully</p>' +
+                    '<p>React version: ' + (window.React ? 'Loaded' : 'Not loaded') + '</p>';
+                console.log('React loaded:', window.React);
+            };
+            script.onerror = function() {
+                resultDiv.innerHTML = 
+                    '<p class="error">❌ Failed to load React</p>' +
+                    '<p>Check network connection</p>';
+                console.error('Failed to load React');
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        // Page load check
+        console.log('Debug page loaded successfully');
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Cookies enabled:', navigator.cookieEnabled);
+        console.log('JavaScript enabled:', true);
+        
+        // Check for common issues
+        if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined') {
+            console.warn('React DevTools hook detected:', window.__REACT_DEVTOOLS_GLOBAL_HOOK__);
+        }
+        
+        // Auto-run basic tests
+        setTimeout(() => {
+            document.getElementById('js-result').innerHTML = 
+                '<p>Click the button to test JavaScript</p>';
+            document.getElementById('console-result').innerHTML = 
+                '<p>Click the button to test console</p>';
+            document.getElementById('react-result').innerHTML = 
+                '<p>Click the button to test React loading</p>';
+        }, 100);
+    </script>
+</body>
+</html>

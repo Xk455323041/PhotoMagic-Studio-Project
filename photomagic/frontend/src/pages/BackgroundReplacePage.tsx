@@ -74,7 +74,28 @@ const BackgroundReplacePage: React.FC = () => {
   }
 
   const handleDownload = () => {
-    alert('开始下载替换背景后的图片')
+    if (!processed) {
+      alert('请先处理图片')
+      return
+    }
+    
+    // 模拟下载功能
+    const mockFileName = `background_replaced_${Date.now()}.png`
+    const mockFileUrl = URL.createObjectURL(
+      new Blob(['mock background replaced image'], { type: 'image/png' })
+    )
+    
+    const link = document.createElement('a')
+    link.href = mockFileUrl
+    link.download = mockFileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // 清理URL对象
+    URL.revokeObjectURL(mockFileUrl)
+    
+    alert('下载开始')
   }
 
   const handleReset = () => {

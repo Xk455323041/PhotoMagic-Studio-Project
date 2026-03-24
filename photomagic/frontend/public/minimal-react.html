@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal React Test</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Minimal React Test</h1>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        
+        function App() {
+            const [count, setCount] = useState(0);
+            const [message, setMessage] = useState('Click the button!');
+            
+            const handleClick = () => {
+                const newCount = count + 1;
+                setCount(newCount);
+                setMessage(`Clicked ${newCount} times`);
+                console.log('Button clicked, count:', newCount);
+            };
+            
+            return (
+                <div>
+                    <h2>Simple React Component</h2>
+                    <p>{message}</p>
+                    <button onClick={handleClick}>
+                        Click Me (React)
+                    </button>
+                    <p>Count: {count}</p>
+                    <div className="success">
+                        ✅ If you can see this, React is working!
+                    </div>
+                </div>
+            );
+        }
+        
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        
+        console.log('Minimal React app loaded successfully');
+        console.log('React version:', React.version);
+        console.log('ReactDOM version:', ReactDOM.version);
+        
+        // Check for React DevTools hook
+        if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+            console.warn('React DevTools hook found, this may cause issues');
+        }
+    </script>
+</body>
+</html>

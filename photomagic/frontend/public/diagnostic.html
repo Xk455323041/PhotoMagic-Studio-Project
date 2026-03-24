@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>前端功能诊断测试</h1>
+    
+    <div class="test-section">
+        <h2>测试1: 基本JavaScript功能</h2>
+        <button id="test1-btn">点击测试</button>
+        <div id="test1-result">等待测试...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试2: 事件监听器</h2>
+        <button id="test2-btn">addEventListener测试</button>
+        <div id="test2-result">等待测试...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试3: 表单输入</h2>
+        <input type="text" id="test3-input" placeholder="输入文本...">
+        <button id="test3-btn">提交测试</button>
+        <div id="test3-result">等待测试...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试4: 文件上传模拟</h2>
+        <input type="file" id="test4-file" accept="image/*">
+        <button id="test4-btn">上传测试</button>
+        <div id="test4-result">等待测试...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>控制台日志</h2>
+        <div class="log" id="console-log"></div>
+    </div>
+    
+    <script>
+        const log = document.getElementById('console-log');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${timestamp}] ${message}`;
+            entry.className = type;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // 测试1: 基本JavaScript
+        document.getElementById('test1-btn').onclick = function() {
+            addLog('测试1按钮被点击');
+            document.getElementById('test1-result').innerHTML = 
+                '<span class="success">✓ 基本JavaScript功能正常</span>';
+        };
+        
+        // 测试2: 事件监听器
+        document.getElementById('test2-btn').addEventListener('click', function() {
+            addLog('测试2按钮被点击 (addEventListener)');
+            document.getElementById('test2-result').innerHTML = 
+                '<span class="success">✓ 事件监听器工作正常</span>';
+        });
+        
+        // 测试3: 表单输入
+        document.getElementById('test3-btn').addEventListener('click', function() {
+            const input = document.getElementById('test3-input').value;
+            addLog(`表单输入测试: "${input}"`);
+            if (input.trim()) {
+                document.getElementById('test3-result').innerHTML = 
+                    `<span class="success">✓ 表单输入正常: "${input}"</span>`;
+            } else {
+                document.getElementById('test3-result').innerHTML = 
+                    '<span class="error">✗ 请输入文本</span>';
+            }
+        });
+        
+        // 测试4: 文件上传
+        document.getElementById('test4-btn').addEventListener('click', function() {
+            const fileInput = document.getElementById('test4-file');
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                addLog(`文件选择: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+                document.getElementById('test4-result').innerHTML = 
+                    `<span class="success">✓ 文件选择正常: ${file.name}</span>`;
+            } else {
+                addLog('没有选择文件');
+                document.getElementById('test4-result').innerHTML = 
+                    '<span class="error">✗ 请选择文件</span>';
+            }
+        });
+        
+        // 页面加载完成
+        addLog('诊断页面加载完成');
+        addLog(`用户代理: ${navigator.userAgent}`);
+        addLog(`JavaScript启用: ${typeof window !== 'undefined'}`);
+        
+        // 检查控制台错误捕获
+        window.onerror = function(msg, url, line, col, error) {
+            addLog(`JavaScript错误: ${msg} (${url}:${line}:${col})`, 'error');
+            return false;
+        };
+    </script>
+</body>
+</html></result>
