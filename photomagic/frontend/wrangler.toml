@@ -1,0 +1,33 @@
+# Cloudflare Pages 配置文件
+# 适用于 PhotoMagic Studio 前端项目
+
+name = "photomagic-studio"
+type = "webpack"
+account_id = "your-account-id"  # 需要在 Cloudflare Dashboard 中设置
+workers_dev = true
+compatibility_date = "2024-03-24"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "npm install && npm run build"
+output_dir = "dist"
+
+[build.upload]
+format = "service-worker"
+
+[[routes]]
+pattern = "photomagic-studio.pages.dev/*"
+zone_name = "pages.dev"
+custom_domain = false
+
+# 环境变量示例（需要在 Cloudflare Dashboard 中设置）
+# [vars]
+# NODE_VERSION = "18"
+# API_URL = "https://api.example.com"
+
+# 部署配置
+[deployment]
+environments = [
+  { name = "production", branch = "main" },
+  { name = "preview", branch = "*" }
+]
