@@ -1,0 +1,15 @@
+{
+  "build": {
+    "command": "./cloudflare-build-ultimate.sh",
+    "output_dir": "frontend/dist"
+  },
+  "environment_variables": {
+    "NODE_VERSION": "18"
+  },
+  "routes": [
+    {
+      "pattern": "/*",
+      "file": "frontend/dist/index.html"
+    }
+  ]
+}

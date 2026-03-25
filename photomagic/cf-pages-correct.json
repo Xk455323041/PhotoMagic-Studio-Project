@@ -1,0 +1,17 @@
+{
+  "build": {
+    "command": "./correct-build.sh",
+    "output_dir": "frontend/dist"
+  },
+  "environment_variables": {
+    "NODE_VERSION": "18",
+    "NODE_ENV": "production"
+  },
+  "routes": [
+    {
+      "pattern": "/*",
+      "file": "frontend/dist/index.html",
+      "status": 200
+    }
+  ]
+}

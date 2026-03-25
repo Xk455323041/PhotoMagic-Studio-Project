@@ -1,7 +1,7 @@
 {
   "build": {
-    "command": "./universal-build.sh",
-    "output_dir": "photomagic/frontend/dist"
+    "command": "./stable-build.sh",
+    "output_dir": "frontend/dist"
   },
   "environment_variables": {
     "NODE_VERSION": "18",

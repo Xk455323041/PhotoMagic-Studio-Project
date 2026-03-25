@@ -1,0 +1,9 @@
+{
+  "build": {
+    "command": "./simple-build.sh",
+    "output_dir": "frontend/dist"
+  },
+  "environment_variables": {
+    "NODE_VERSION": "18"
+  }
+}
