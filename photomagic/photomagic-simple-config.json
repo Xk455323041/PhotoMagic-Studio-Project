@@ -1,0 +1,29 @@
+{
+  "build": {
+    "command": "cd photomagic/frontend && npm install && npm run build",
+    "output_directory": "photomagic/frontend/dist",
+    "node_version": "18"
+  },
+  
+  "deploy": {
+    "production": {
+      "branch": "main",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build"
+    },
+    
+    "preview": {
+      "branch": "*",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build"
+    },
+    
+    "staging": {
+      "branch": "staging",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build"
+    }
+  },
+  
+  "environment_variables": {
+    "NODE_VERSION": "18",
+    "NODE_ENV": "production"
+  }
+}

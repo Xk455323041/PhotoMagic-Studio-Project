@@ -1,0 +1,160 @@
+{
+  "name": "photomagic-studio",
+  "production_branch": "main",
+  "compatibility_date": "2024-01-01",
+  
+  "build": {
+    "command": "cd photomagic/frontend && npm install && npm run build",
+    "output_directory": "photomagic/frontend/dist",
+    "node_version": "18"
+  },
+  
+  "deploy": {
+    "production": {
+      "branch": "main",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build",
+      "environment_variables": {
+        "VITE_API_URL": "https://api.photomagic-studio.com",
+        "VITE_ENV": "production",
+        "VITE_APP_NAME": "PhotoMagic Studio",
+        "VITE_APP_VERSION": "1.0.0",
+        "VITE_MAX_FILE_SIZE": "20971520",
+        "VITE_SUPPORTED_FORMATS": "jpg,jpeg,png,gif,webp",
+        "VITE_IMAGE_QUALITY": "85",
+        "VITE_ENABLE_PWA": "true"
+      }
+    },
+    
+    "preview": {
+      "branch": "*",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build",
+      "environment_variables": {
+        "VITE_API_URL": "https://preview-api.photomagic-studio.com",
+        "VITE_ENV": "preview",
+        "VITE_APP_NAME": "PhotoMagic Studio (Preview)",
+        "VITE_APP_VERSION": "1.0.0-preview",
+        "VITE_MAX_FILE_SIZE": "10485760",
+        "VITE_SUPPORTED_FORMATS": "jpg,jpeg,png",
+        "VITE_IMAGE_QUALITY": "75",
+        "VITE_ENABLE_PWA": "false"
+      }
+    },
+    
+    "staging": {
+      "branch": "staging",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build:staging",
+      "environment_variables": {
+        "VITE_API_URL": "https://staging-api.photomagic-studio.com",
+        "VITE_ENV": "staging",
+        "VITE_APP_NAME": "PhotoMagic Studio (Staging)",
+        "VITE_APP_VERSION": "1.0.0-staging",
+        "VITE_MAX_FILE_SIZE": "10485760",
+        "VITE_SUPPORTED_FORMATS": "jpg,jpeg,png,gif",
+        "VITE_IMAGE_QUALITY": "80",
+        "VITE_ENABLE_PWA": "true"
+      }
+    },
+    
+    "development": {
+      "branch": "develop",
+      "command": "cd photomagic/frontend && npm install --no-audit --no-fund && npm run build:dev",
+      "environment_variables": {
+        "VITE_API_URL": "http://localhost:3000",
+        "VITE_ENV": "development",
+        "VITE_APP_NAME": "PhotoMagic Studio (Dev)",
+        "VITE_APP_VERSION": "1.0.0-dev",
+        "VITE_MAX_FILE_SIZE": "5242880",
+        "VITE_SUPPORTED_FORMATS": "jpg,jpeg,png",
+        "VITE_IMAGE_QUALITY": "70",
+        "VITE_ENABLE_PWA": "false",
+        "VITE_DEBUG": "true"
+      }
+    }
+  },
+  
+  "headers": [
+    {
+      "source": "/*",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.photomagic-studio.com https://preview-api.photomagic-studio.com https://staging-api.photomagic-studio.com;"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/assets/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/*.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/*.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    }
+  ],
+  
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "https://docs.photomagic-studio.com",
+      "status_code": 302
+    },
+    {
+      "source": "/api/*",
+      "destination": "https://api.photomagic-studio.com/:splat",
+      "status_code": 302
+    },
+    {
+      "source": "/support",
+      "destination": "https://support.photomagic-studio.com",
+      "status_code": 301
+    }
+  ],
+  
+  "routes": [
+    {
+      "pattern": "/*",
+      "file": "photomagic/frontend/dist/index.html",
+      "status": 200
+    },
+    {
+      "pattern": "/assets/*",
+      "file": "photomagic/frontend/dist/assets/:splat",
+      "status": 200
+    }
+  ]
+}

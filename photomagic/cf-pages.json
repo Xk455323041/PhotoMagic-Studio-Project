@@ -1,8 +1,7 @@
 {
   "build": {
-    "command": "./build.sh",
-    "output_dir": "photomagic/frontend/dist",
-    "root_dir": "/"
+    "command": "cd photomagic/frontend && npm install && npm run build",
+    "output_dir": "photomagic/frontend/dist"
   },
   "environment_variables": {
     "NODE_VERSION": "18",
