@@ -1,0 +1,10 @@
+{
+  "build": {
+    "command": "./final-fix-build.sh",
+    "output_dir": "photomagic/frontend/dist"
+  },
+  "environment_variables": {
+    "NODE_VERSION": "18",
+    "NODE_ENV": "production"
+  }
+}

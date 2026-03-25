@@ -1,0 +1,6 @@
+{
+  "build": {
+    "command": "./cloudflare-absolute-fix.sh",
+    "output_dir": "photomagic/frontend/dist"
+  }
+}
