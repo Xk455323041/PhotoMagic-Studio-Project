@@ -92,9 +92,9 @@ const defaultSettings: UserSettings = {
 }
 
 const defaultApiConfig: ApiConfig = {
-  // IMPORTANT: must be HTTPS in production to avoid Mixed Content when site is served over HTTPS.
-  // Change this to your real API domain once HTTPS is configured.
-  endpoint: 'https://101.32.246.47:3002/api/v1',
+  // Use relative URL so it works with HTTPS sites and avoids Mixed Content.
+  // Configure your reverse proxy to forward /api/v1 -> backend.
+  endpoint: '/api/v1',
   timeout: 30000,
   maxFileSize: 20 * 1024 * 1024, // 20MB
   allowedFormats: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff'],
