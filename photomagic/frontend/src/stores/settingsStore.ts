@@ -1,6 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// Auto-migrate persisted apiConfig.endpoint to avoid Mixed Content.
+// If the site is served over HTTPS and endpoint is absolute http(s), we force it to a relative '/api/v1'.
+function migrateApiEndpoint(endpoint: string): string {
+  try {
+    if (typeof window !== 'undefined') {
+      const isHttpsSite = window.location.protocol === 'https:'
+      const isAbsolute = /^https?:\/\//i.test(endpoint)
+      if (isHttpsSite && isAbsolute) return '/api/v1'
+    }
+  } catch {
+    // ignore
+  }
+  return endpoint
+}
+
 export interface UserSettings {
   // 界面设置
   theme: 'light' | 'dark' | 'system'
@@ -131,6 +146,17 @@ export const useSettingsStore = create<SettingsState>()(
       
       initialize: () => {
         if (get().isInitialized) return
+
+        // Auto-migrate persisted API endpoint to avoid Mixed Content
+        try {
+          const { apiConfig } = get()
+          const migrated = migrateApiEndpoint(apiConfig.endpoint)
+          if (migrated !== apiConfig.endpoint) {
+            set({ apiConfig: { ...apiConfig, endpoint: migrated } })
+          }
+        } catch {
+          // ignore
+        }
         
         // 检测系统主题
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
