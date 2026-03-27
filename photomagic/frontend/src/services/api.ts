@@ -351,6 +351,17 @@ class ApiService {
     return response.data.data!
   }
 
+  // 下载处理结果（按 result_id）
+  async downloadResult(resultId: string): Promise<Blob> {
+    // 这里用 axios 原生能力拿二进制，避免被 JSON 拦截器处理
+    const response = await this.client.get(`/results/${encodeURIComponent(resultId)}`, {
+      responseType: 'blob'
+    })
+
+    // axios 在浏览器下 response.data 就是 Blob
+    return response.data as unknown as Blob
+  }
+
   // 测试API连接
   async testConnection(): Promise<boolean> {
     try {

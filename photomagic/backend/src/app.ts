@@ -11,6 +11,7 @@ import backgroundReplacementRouter from './routes/background-replacement';
 import photoRestorationRouter from './routes/photo-restoration';
 import healthRouter from './routes/health';
 import uploadRouter from './routes/upload';
+import resultsRouter from './routes/results';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -56,6 +57,7 @@ app.use('/api/v1/background-removal', backgroundRemovalRouter);
 app.use('/api/v1/id-photo', idPhotoRouter);
 app.use('/api/v1/background-replacement', backgroundReplacementRouter);
 app.use('/api/v1/photo-restoration', photoRestorationRouter);
+app.use('/api/v1/results', resultsRouter);
 
 // 404处理
 app.use('*', (req, res) => {

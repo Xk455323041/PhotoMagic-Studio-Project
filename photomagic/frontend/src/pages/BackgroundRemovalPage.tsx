@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/Button'
 import FileUpload from '@/components/upload/FileUpload'
 import ProcessingControls from '@/components/processing/ProcessingControls'
 import ResultPreview from '@/components/result/ResultPreview'
+import { apiService } from '@/services/api'
 
 const BackgroundRemovalPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [processing, setProcessing] = useState(false)
   const [processed, setProcessed] = useState(false)
   const [processingTime, setProcessingTime] = useState(0)
-  const [processedResult, setProcessedResult] = useState<{ url: string; filename: string } | null>(null)
+  const [processedResult, setProcessedResult] = useState<{ url: string; filename: string; resultId?: string } | null>(null)
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
@@ -19,39 +20,77 @@ const BackgroundRemovalPage: React.FC = () => {
 
   const handleProcess = async () => {
     if (!uploadedFile) return
-    
+
     setProcessing(true)
     const startTime = Date.now()
-    
+
     try {
-      // 模拟处理过程
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
+      // 1) 上传文件
+      const uploaded = await apiService.uploadFile(uploadedFile, 'background_removal', '背景移除')
+
+      // 2) 调用背景移除
+      const result = await apiService.backgroundRemoval(uploaded.fileId || (uploaded as any).file_id, {
+        format: 'png',
+        bg_color: 'transparent'
+      } as any)
+
       const endTime = Date.now()
       setProcessingTime(endTime - startTime)
       setProcessing(false)
       setProcessed(true)
-      
-      // 创建模拟的处理结果
-      const processedFileName = `processed_${uploadedFile.name.replace(/\.[^/.]+$/, '')}.png`
-      const mockProcessedUrl = URL.createObjectURL(
-        new Blob(['mock processed image'], { type: 'image/png' })
-      )
-      
+
+      const processedFileName = `transparent_${uploadedFile.name.replace(/\.[^/.]+$/, '')}.png`
+
+      // 注意：这里不要直接用 result.url（它可能是 /temp/... 且线上不可访问）
       setProcessedResult({
-        url: mockProcessedUrl,
-        filename: processedFileName
-      })
-      
-    } catch (error) {
+        url: result.url,
+        filename: processedFileName,
+        // @ts-expect-error: 为下载保留 result_id
+        resultId: (result as any).result_id || (result as any).resultId
+      } as any)
+
+    } catch (error: any) {
       console.error('处理失败:', error)
       setProcessing(false)
     }
   }
 
-  const handleDownload = () => {
-    // 模拟下载功能
-    alert('开始下载处理后的图片')
+  const handleDownload = async () => {
+    if (!processedResult) {
+      alert('没有可下载的结果')
+      return
+    }
+
+    try {
+      // @ts-expect-error
+      const resultId = (processedResult as any).resultId
+      if (!resultId) {
+        // 兜底：如果没有 resultId，尝试直接下载 url
+        const a = document.createElement('a')
+        a.href = processedResult.url
+        a.download = processedResult.filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        return
+      }
+
+      const blob = await apiService.downloadResult(resultId)
+      const url = URL.createObjectURL(blob)
+
+      const a = document.createElement('a')
+      a.href = url
+      a.download = processedResult.filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+
+      setTimeout(() => URL.revokeObjectURL(url), 2000)
+
+    } catch (e) {
+      console.error(e)
+      alert('下载失败，请重试')
+    }
   }
 
   const handleReset = () => {
