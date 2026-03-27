@@ -29,10 +29,10 @@ const BackgroundRemovalPage: React.FC = () => {
       const uploaded = await apiService.uploadFile(uploadedFile, 'background_removal', '背景移除')
 
       // 2) 调用背景移除
-      const result = await apiService.backgroundRemoval(uploaded.fileId || (uploaded as any).file_id, {
+      const result = await apiService.backgroundRemoval(uploaded.file_id, {
         format: 'png',
         bg_color: 'transparent'
-      } as any)
+      })
 
       const endTime = Date.now()
       setProcessingTime(endTime - startTime)
@@ -45,9 +45,8 @@ const BackgroundRemovalPage: React.FC = () => {
       setProcessedResult({
         url: result.url,
         filename: processedFileName,
-        // @ts-expect-error: 为下载保留 result_id
-        resultId: (result as any).result_id || (result as any).resultId
-      } as any)
+        resultId: result.result_id
+      })
 
     } catch (error: any) {
       console.error('处理失败:', error)

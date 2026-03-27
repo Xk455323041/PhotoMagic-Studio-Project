@@ -353,13 +353,20 @@ class ApiService {
 
   // 下载处理结果（按 result_id）
   async downloadResult(resultId: string): Promise<Blob> {
-    // 这里用 axios 原生能力拿二进制，避免被 JSON 拦截器处理
-    const response = await this.client.get(`/results/${encodeURIComponent(resultId)}`, {
-      responseType: 'blob'
+    // 不走 axios 拦截器（它会假设所有响应都是 {success:true,...} JSON）
+    const { apiConfig } = useSettingsStore.getState()
+    const url = `${apiConfig.endpoint}/results/${encodeURIComponent(resultId)}`
+
+    const res = await fetch(url, {
+      method: 'GET',
+      credentials: 'omit'
     })
 
-    // axios 在浏览器下 response.data 就是 Blob
-    return response.data as unknown as Blob
+    if (!res.ok) {
+      throw new Error(`下载失败: ${res.status}`)
+    }
+
+    return await res.blob()
   }
 
   // 测试API连接
