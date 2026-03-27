@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Upload, Scissors, Download, Settings, Zap, CheckCircle, Clock } from 'lucide-react'
+import { Upload, Scissors, Download, Settings, Zap, CheckCircle, Clock, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import FileUpload from '@/components/upload/FileUpload'
 import ProcessingControls from '@/components/processing/ProcessingControls'
@@ -12,6 +12,7 @@ const BackgroundRemovalPage: React.FC = () => {
   const [processed, setProcessed] = useState(false)
   const [processingTime, setProcessingTime] = useState(0)
   const [processedResult, setProcessedResult] = useState<{ url: string; filename: string; resultId?: string } | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
@@ -54,6 +55,14 @@ const BackgroundRemovalPage: React.FC = () => {
     }
   }
 
+  const handlePreview = () => {
+    if (!processedResult?.url) {
+      alert('没有可预览的结果')
+      return
+    }
+    setPreviewOpen(true)
+  }
+
   const handleDownload = async () => {
     if (!processedResult) {
       alert('没有可下载的结果')
@@ -61,30 +70,28 @@ const BackgroundRemovalPage: React.FC = () => {
     }
 
     try {
-      // @ts-expect-error
-      const resultId = (processedResult as any).resultId
-      if (!resultId) {
-        // 兜底：如果没有 resultId，尝试直接下载 url
+      const resultId = processedResult.resultId
+      if (resultId) {
+        const blob = await apiService.downloadResult(resultId)
+        const url = URL.createObjectURL(blob)
+
         const a = document.createElement('a')
-        a.href = processedResult.url
+        a.href = url
         a.download = processedResult.filename
         document.body.appendChild(a)
         a.click()
         a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 2000)
         return
       }
 
-      const blob = await apiService.downloadResult(resultId)
-      const url = URL.createObjectURL(blob)
-
+      // 兜底：直接下载 url
       const a = document.createElement('a')
-      a.href = url
+      a.href = processedResult.url
       a.download = processedResult.filename
       document.body.appendChild(a)
       a.click()
       a.remove()
-
-      setTimeout(() => URL.revokeObjectURL(url), 2000)
 
     } catch (e) {
       console.error(e)
@@ -241,10 +248,10 @@ const BackgroundRemovalPage: React.FC = () => {
                 <Button
                   variant="primary"
                   fullWidth
-                  leftIcon={<Download className="h-4 w-4" />}
-                  onClick={handleDownload}
+                  leftIcon={<Eye className="h-4 w-4" />}
+                  onClick={handlePreview}
                 >
-                  下载透明PNG
+                  预览透明PNG
                 </Button>
               </div>
             </div>
@@ -306,6 +313,55 @@ const BackgroundRemovalPage: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* 预览弹窗 */}
+      {previewOpen && processedResult?.url && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-xl bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-lg font-semibold text-gray-900">透明PNG预览</div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  leftIcon={<Download className="h-4 w-4" />}
+                  onClick={handleDownload}
+                >
+                  下载
+                </Button>
+                <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+                  关闭
+                </Button>
+              </div>
+            </div>
+
+            <div
+              className="overflow-auto rounded-lg border border-gray-200 p-4"
+              style={{
+                backgroundImage:
+                  'linear-gradient(45deg, #eee 25%, transparent 25%),' +
+                  'linear-gradient(-45deg, #eee 25%, transparent 25%),' +
+                  'linear-gradient(45deg, transparent 75%, #eee 75%),' +
+                  'linear-gradient(-45deg, transparent 75%, #eee 75%)',
+                backgroundSize: '20px 20px',
+                backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+              }}
+            >
+              <img
+                src={processedResult.url}
+                alt="透明PNG预览"
+                className="mx-auto block max-h-[70vh] max-w-full"
+              />
+            </div>
+
+            <div className="mt-3 text-sm text-gray-500">{processedResult.filename}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
