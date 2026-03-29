@@ -280,7 +280,7 @@ class ApiService {
     }
     
     const response = await this.client.post<ApiResponse<FileMetadata>>(
-      '/upload',
+      '/api/v1/upload',
       formData,
       {
         headers: {
