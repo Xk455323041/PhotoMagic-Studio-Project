@@ -1,8 +1,8 @@
 // Cloudflare Pages Function: /api/v1/upload
-// Handles multipart/form-data uploads.
+// Handles multipart/form-data uploads and stores original files in R2.
 
 export interface Env {
-  // optional: add KV/R2 bindings later
+  BUCKET: R2Bucket
 }
 
 const corsHeaders = {
@@ -11,22 +11,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp",
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  // Avoid `String.fromCharCode(...bigArray)` which throws "Maximum call stack size" / "too many arguments"
-  const bytes = new Uint8Array(buffer)
-  const chunkSize = 0x8000 // 32KB
-  let binary = ""
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
-  }
-  return btoa(binary)
-}
-
 export const onRequestOptions: PagesFunction<Env> = async () => {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request }) => {
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const contentType = request.headers.get("content-type") || ""
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
@@ -37,8 +26,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request }) => {
     }
 
     const form = await request.formData()
-
-    // Frontend uses: formData.append('file', file)
     const file = form.get("file")
     const type = (form.get("type") || "").toString()
     const purpose = (form.get("purpose") || "").toString()
@@ -50,43 +37,43 @@ export const onRequestPost: PagesFunction<Env> = async ({ request }) => {
       )
     }
 
-    // MVP: return a data URL (OK for small-ish images; production should store to R2 and return a URL)
-    // Guardrail: avoid huge responses/timeouts.
-    const MAX_BYTES = 5 * 1024 * 1024
-    if (file.size > MAX_BYTES) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: "PAYLOAD_TOO_LARGE",
-            message: `File too large for MVP inline response (>${MAX_BYTES} bytes). Use R2 storage.`
-          }
-        }),
-        { status: 413, headers: { "content-type": "application/json", ...corsHeaders } }
-      )
-    }
-
-    const arrayBuffer = await file.arrayBuffer()
-    const base64 = arrayBufferToBase64(arrayBuffer)
-    const mime = file.type || "application/octet-stream"
-    const dataUrl = `data:${mime};base64,${base64}`
-
     const fileId = crypto.randomUUID()
+    const mime = file.type || "application/octet-stream"
+    const extension = file.name.includes(".") ? file.name.split(".").pop() : "bin"
+    const key = `uploads/${fileId}.${extension}`
+
+    await env.BUCKET.put(key, file.stream(), {
+      httpMetadata: {
+        contentType: mime,
+        contentDisposition: `inline; filename="${file.name.replace(/"/g, "")}"`,
+      },
+      customMetadata: {
+        originalName: file.name,
+        type,
+        purpose,
+      },
+    })
+
     const now = new Date()
-    const expires = new Date(now.getTime() + 60 * 60 * 1000)
+    const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    const url = `/api/v1/files/${fileId}`
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           file_id: fileId,
-          url: dataUrl,
+          url,
           expires_at: expires.toISOString(),
           metadata: {
             filename: file.name,
             size: file.size,
             mime_type: mime,
             dimensions: { width: 0, height: 0 },
+          },
+          storage: {
+            provider: "r2",
+            key,
           },
           type,
           purpose,

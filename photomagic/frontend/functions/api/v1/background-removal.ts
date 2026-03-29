@@ -1,8 +1,10 @@
 // Cloudflare Pages Function: /api/v1/background-removal
-// MVP implementation: expects JSON { file_id, parameters }
-// NOTE: This stub does NOT do real background removal. It returns the uploaded data URL if the client passes it.
+// Temporary R2-backed implementation: copies uploaded original to result storage
+// so preview/download work. Real background removal can be plugged in later.
 
-export interface Env {}
+export interface Env {
+  BUCKET: R2Bucket
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,11 +12,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp",
 }
 
+async function findUploadById(bucket: R2Bucket, fileId: string) {
+  const list = await bucket.list({ prefix: `uploads/${fileId}` })
+  if (!list.objects.length) return null
+  const key = list.objects[0].key
+  const obj = await bucket.get(key)
+  return { key, obj }
+}
+
 export const onRequestOptions: PagesFunction<Env> = async () => {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request }) => {
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const body = await request.json().catch(() => null)
     if (!body || !body.file_id) {
@@ -24,22 +34,45 @@ export const onRequestPost: PagesFunction<Env> = async ({ request }) => {
       )
     }
 
+    const found = await findUploadById(env.BUCKET, body.file_id)
+    if (!found || !found.obj) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Uploaded file not found" } }),
+        { status: 404, headers: { "content-type": "application/json", ...corsHeaders } }
+      )
+    }
+
     const resultId = crypto.randomUUID()
+    const sourceKey = found.key
+    const resultExt = sourceKey.includes(".") ? sourceKey.split(".").pop() : "bin"
+    const resultKey = `results/${resultId}.${resultExt}`
+
+    await env.BUCKET.put(resultKey, found.obj.body, {
+      httpMetadata: {
+        contentType: found.obj.httpMetadata?.contentType || "application/octet-stream",
+        contentDisposition: found.obj.httpMetadata?.contentDisposition || undefined,
+      },
+      customMetadata: {
+        source_file_id: body.file_id,
+        operation: "background-removal-stub",
+      },
+    })
+
     const now = new Date()
-    const expires = new Date(now.getTime() + 60 * 60 * 1000)
+    const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    const url = `/api/v1/results/${resultId}`
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           result_id: resultId,
-          // placeholder URL; in real impl this would be an R2 signed URL or stored asset
-          url: body.url || "",
+          url,
           expires_at: expires.toISOString(),
           processing_time: 0,
           metadata: {
             parameters: body.parameters || {},
-            note: "MVP stub: background removal not implemented",
+            note: "Temporary implementation: preview/download available, real background removal not yet applied",
           },
         },
       }),
