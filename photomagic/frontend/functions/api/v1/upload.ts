@@ -11,6 +11,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp",
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  // Avoid `String.fromCharCode(...bigArray)` which throws "Maximum call stack size" / "too many arguments"
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000 // 32KB
+  let binary = ""
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
+
 export const onRequestOptions: PagesFunction<Env> = async () => {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
@@ -39,9 +50,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request }) => {
       )
     }
 
-    // For MVP: return a data URL (works for small-ish images; not suitable for large production files)
+    // MVP: return a data URL (OK for small-ish images; production should store to R2 and return a URL)
+    // Guardrail: avoid huge responses/timeouts.
+    const MAX_BYTES = 5 * 1024 * 1024
+    if (file.size > MAX_BYTES) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "PAYLOAD_TOO_LARGE",
+            message: `File too large for MVP inline response (>${MAX_BYTES} bytes). Use R2 storage.`
+          }
+        }),
+        { status: 413, headers: { "content-type": "application/json", ...corsHeaders } }
+      )
+    }
+
     const arrayBuffer = await file.arrayBuffer()
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const base64 = arrayBufferToBase64(arrayBuffer)
     const mime = file.type || "application/octet-stream"
     const dataUrl = `data:${mime};base64,${base64}`
 
