@@ -278,9 +278,11 @@ class ApiService {
     if (!apiConfig.allowedFormats.includes(file.type)) {
       throw new Error('不支持的文件格式')
     }
-    
+
+    // baseURL 已经是 '/api/v1'，这里不能再重复拼接 '/api/v1'
+    // 否则会请求成 '/api/v1/api/v1/upload'，在 Pages 上容易返回 405
     const response = await this.client.post<ApiResponse<FileMetadata>>(
-      '/api/v1/upload',
+      '/upload',
       formData,
       {
         headers: {
