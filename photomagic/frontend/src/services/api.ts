@@ -25,10 +25,21 @@ function isBrowserFile(value: unknown): value is File {
 }
 
 function toLatin1SafeHeaderValue(value: string) {
-  return value
-    .normalize('NFKD')
-    .replace(/[^\x20-\x7E]/g, '_')
-    .slice(0, 180) || `upload-${Date.now()}.bin`
+  return (
+    value
+      .normalize('NFKD')
+      .replace(/[^\x20-\x7E]/g, '_')
+      .slice(0, 180) || `upload-${Date.now()}.bin`
+  )
+}
+
+function toAsciiQueryValue(value: string) {
+  return encodeURIComponent(
+    value
+      .normalize('NFKD')
+      .replace(/[^\x20-\x7E]/g, '_')
+      .slice(0, 180)
+  )
 }
 
 // API 响应基础接口
@@ -244,16 +255,21 @@ class ApiService {
 
     const safeFileName = file.name || `upload-${Date.now()}.bin`
     const headerSafeFileName = toLatin1SafeHeaderValue(safeFileName)
+    const uploadTypeSafe = toLatin1SafeHeaderValue(type || 'file')
+    const uploadPurposeSafe = toLatin1SafeHeaderValue(purpose || 'upload')
+    const fileNameQuery = toAsciiQueryValue(safeFileName)
+    const typeQuery = toAsciiQueryValue(type || 'file')
+    const purposeQuery = toAsciiQueryValue(purpose || 'upload')
 
     const response = await this.client.post<ApiResponse<FileMetadata>>(
-      '/upload',
+      `/upload?filename=${fileNameQuery}&type=${typeQuery}&purpose=${purposeQuery}`,
       file,
       {
         headers: {
           'Content-Type': file.type || 'application/octet-stream',
           'X-File-Name': headerSafeFileName,
-          'X-Upload-Type': type,
-          'X-Upload-Purpose': purpose,
+          'X-Upload-Type': uploadTypeSafe,
+          'X-Upload-Purpose': uploadPurposeSafe,
         },
         transformRequest: [(data) => data],
         onUploadProgress: (progressEvent) => {

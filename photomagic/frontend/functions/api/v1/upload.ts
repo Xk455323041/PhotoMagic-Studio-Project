@@ -94,9 +94,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     // Preferred path: raw binary upload.
     if (!normalizedContentType.includes("multipart/form-data")) {
-      const rawFileName = sanitizeFilename(request.headers.get("x-file-name") || "upload.bin")
-      const uploadType = (request.headers.get("x-upload-type") || "").toString()
-      const uploadPurpose = (request.headers.get("x-upload-purpose") || "").toString()
+      const url = new URL(request.url)
+      const rawFileName = sanitizeFilename(
+        url.searchParams.get("filename") || request.headers.get("x-file-name") || "upload.bin"
+      )
+      const uploadType = (
+        url.searchParams.get("type") || request.headers.get("x-upload-type") || ""
+      ).toString()
+      const uploadPurpose = (
+        url.searchParams.get("purpose") || request.headers.get("x-upload-purpose") || ""
+      ).toString()
       const mime = contentType || "application/octet-stream"
       const extension = getExtension(rawFileName)
       const fileId = crypto.randomUUID()
