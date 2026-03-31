@@ -324,6 +324,18 @@ class ApiService {
     return response.data.data!
   }
 
+  // 下载处理结果
+  async downloadResult(resultId: string): Promise<Blob> {
+    const response = await this.client.get(`/results/${resultId}`, {
+      responseType: 'blob',
+      headers: {
+        Accept: 'image/png,image/*,*/*',
+      },
+    })
+
+    return response.data as Blob
+  }
+
   // 老照片修复
   async photoRestoration(fileId: string, params: PhotoRestorationParams = {}): Promise<ProcessingResult> {
     const response = await this.client.post<ApiResponse<ProcessingResult>>(
