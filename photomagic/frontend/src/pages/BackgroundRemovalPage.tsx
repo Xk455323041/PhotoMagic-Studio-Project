@@ -6,6 +6,9 @@ import ProcessingControls from '@/components/processing/ProcessingControls'
 import ResultPreview from '@/components/result/ResultPreview'
 import { apiService } from '@/services/api'
 
+const isBrowserFile = (value: unknown): value is File =>
+  typeof File !== 'undefined' && value instanceof File
+
 const BackgroundRemovalPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -19,7 +22,7 @@ const BackgroundRemovalPage: React.FC = () => {
       name: file?.name,
       size: file?.size,
       type: file?.type,
-      isFileInstance: file instanceof File,
+      isFileInstance: isBrowserFile(file),
     })
     setUploadedFile(file)
     setProcessed(false)
@@ -32,7 +35,7 @@ const BackgroundRemovalPage: React.FC = () => {
       name: uploadedFile?.name,
       size: uploadedFile?.size,
       type: uploadedFile?.type,
-      isFileInstance: uploadedFile instanceof File,
+      isFileInstance: isBrowserFile(uploadedFile),
     })
 
     setProcessing(true)

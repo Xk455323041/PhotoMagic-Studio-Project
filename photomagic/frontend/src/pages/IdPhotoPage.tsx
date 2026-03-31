@@ -5,6 +5,9 @@ import FileUpload from '@/components/upload/FileUpload'
 import { apiService } from '@/services/api'
 import toast from 'react-hot-toast'
 
+const isBrowserFile = (value: unknown): value is File =>
+  typeof File !== 'undefined' && value instanceof File
+
 const IdPhotoPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [selectedCountry, setSelectedCountry] = useState('china')
@@ -60,7 +63,7 @@ const IdPhotoPage: React.FC = () => {
       name: file?.name,
       size: file?.size,
       type: file?.type,
-      isFileInstance: file instanceof File,
+      isFileInstance: isBrowserFile(file),
     })
     setUploadedFile(file)
   }
@@ -75,7 +78,7 @@ const IdPhotoPage: React.FC = () => {
       name: uploadedFile?.name,
       size: uploadedFile?.size,
       type: uploadedFile?.type,
-      isFileInstance: uploadedFile instanceof File,
+      isFileInstance: isBrowserFile(uploadedFile),
     })
     
     setProcessing(true)

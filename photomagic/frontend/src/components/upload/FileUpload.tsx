@@ -4,6 +4,9 @@ import { useDropzone } from 'react-dropzone'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 
+const isBrowserFile = (value: unknown): value is File =>
+  typeof File !== 'undefined' && value instanceof File
+
 interface FileUploadProps {
   onFileUpload: (file: File) => void
   acceptedFormats?: string[]
@@ -43,7 +46,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           size: file?.size,
           type: file?.type,
           lastModified: file?.lastModified,
-          isFileInstance: file instanceof File,
+          isFileInstance: isBrowserFile(file),
         })
         onFileUpload(file)
         setUploadSuccess(true)

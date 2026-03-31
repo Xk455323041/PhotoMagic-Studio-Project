@@ -2,6 +2,10 @@ import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios'
 import { toast } from 'react-hot-toast'
 import { useSettingsStore } from '@/stores/settingsStore'
 
+function isBrowserFile(value: unknown): value is File {
+  return typeof File !== 'undefined' && value instanceof File
+}
+
 // API 响应基础接口
 export interface ApiResponse<T = any> {
   success: boolean
@@ -186,7 +190,7 @@ class ApiService {
   async uploadFile(file: File, type: string, purpose: string): Promise<FileMetadata> {
     const { apiConfig } = useSettingsStore.getState()
 
-    if (!(file instanceof File)) {
+    if (!isBrowserFile(file)) {
       console.error('[uploadFile] invalid file object:', file)
       throw new Error('图片文件不存在或已失效，请重新选择图片后再试')
     }
@@ -196,7 +200,7 @@ class ApiService {
       size: file.size,
       type: file.type,
       lastModified: file.lastModified,
-      isFileInstance: file instanceof File,
+      isFileInstance: isBrowserFile(file),
     })
     
     // 检查文件大小
