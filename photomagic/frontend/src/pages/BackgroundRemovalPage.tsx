@@ -6,8 +6,27 @@ import ProcessingControls from '@/components/processing/ProcessingControls'
 import ResultPreview from '@/components/result/ResultPreview'
 import { apiService } from '@/services/api'
 
-const isBrowserFile = (value: unknown): value is File =>
-  typeof File !== 'undefined' && value instanceof File
+const isBrowserFile = (value: unknown): value is File => {
+  if (!value || typeof value !== 'object') return false
+
+  const fileCtor = (globalThis as any)?.File
+  if (typeof fileCtor === 'function') {
+    try {
+      return value instanceof fileCtor
+    } catch {
+      // fall through to duck-typing
+    }
+  }
+
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.size === 'number' &&
+    typeof candidate.type === 'string' &&
+    typeof candidate.arrayBuffer === 'function' &&
+    typeof candidate.slice === 'function'
+  )
+}
 
 const BackgroundRemovalPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)

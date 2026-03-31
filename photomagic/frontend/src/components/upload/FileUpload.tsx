@@ -4,8 +4,27 @@ import { useDropzone } from 'react-dropzone'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 
-const isBrowserFile = (value: unknown): value is File =>
-  typeof File !== 'undefined' && value instanceof File
+const isBrowserFile = (value: unknown): value is File => {
+  if (!value || typeof value !== 'object') return false
+
+  const fileCtor = (globalThis as any)?.File
+  if (typeof fileCtor === 'function') {
+    try {
+      return value instanceof fileCtor
+    } catch {
+      // fall through to duck-typing
+    }
+  }
+
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.size === 'number' &&
+    typeof candidate.type === 'string' &&
+    typeof candidate.arrayBuffer === 'function' &&
+    typeof candidate.slice === 'function'
+  )
+}
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void

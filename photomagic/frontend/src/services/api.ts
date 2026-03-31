@@ -3,7 +3,25 @@ import { toast } from 'react-hot-toast'
 import { useSettingsStore } from '@/stores/settingsStore'
 
 function isBrowserFile(value: unknown): value is File {
-  return typeof File !== 'undefined' && value instanceof File
+  if (!value || typeof value !== 'object') return false
+
+  const fileCtor = (globalThis as any)?.File
+  if (typeof fileCtor === 'function') {
+    try {
+      return value instanceof fileCtor
+    } catch {
+      // fall through to duck-typing
+    }
+  }
+
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.size === 'number' &&
+    typeof candidate.type === 'string' &&
+    typeof candidate.arrayBuffer === 'function' &&
+    typeof candidate.slice === 'function'
+  )
 }
 
 // API 响应基础接口
