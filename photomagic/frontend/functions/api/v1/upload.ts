@@ -11,17 +11,54 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp",
 }
 
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json", ...corsHeaders },
+  })
+}
+
+function getBucketDiagnostics(bucket: unknown) {
+  const anyBucket = bucket as any
+  return {
+    hasBucket: !!bucket,
+    bucketType: typeof bucket,
+    hasPut: typeof anyBucket?.put,
+    hasGet: typeof anyBucket?.get,
+    hasHead: typeof anyBucket?.head,
+    hasList: typeof anyBucket?.list,
+    ctorName: anyBucket?.constructor?.name || null,
+    ownKeys: bucket ? Object.keys(anyBucket).slice(0, 20) : [],
+  }
+}
+
 export const onRequestOptions: PagesFunction<Env> = async () => {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
+    const bucket = env.BUCKET as unknown as { put?: Function }
+
+    if (!bucket || typeof bucket.put !== "function") {
+      return jsonResponse(
+        {
+          success: false,
+          error: {
+            code: "CONFIG_ERROR",
+            message: 'BUCKET binding is missing or invalid',
+            details: getBucketDiagnostics(env.BUCKET),
+          },
+        },
+        500
+      )
+    }
+
     const contentType = request.headers.get("content-type") || ""
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "UNSUPPORTED_MEDIA_TYPE", message: "Expected multipart/form-data" } }),
-        { status: 415, headers: { "content-type": "application/json", ...corsHeaders } }
+      return jsonResponse(
+        { success: false, error: { code: "UNSUPPORTED_MEDIA_TYPE", message: "Expected multipart/form-data" } },
+        415
       )
     }
 
@@ -31,9 +68,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const purpose = (form.get("purpose") || "").toString()
 
     if (!(file instanceof File)) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "MISSING_FILE", message: "Missing form field: file" } }),
-        { status: 400, headers: { "content-type": "application/json", ...corsHeaders } }
+      return jsonResponse(
+        { success: false, error: { code: "MISSING_FILE", message: "Missing form field: file" } },
+        400
       )
     }
 
@@ -41,8 +78,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const mime = file.type || "application/octet-stream"
     const extension = file.name.includes(".") ? file.name.split(".").pop() : "bin"
     const key = `uploads/${fileId}.${extension}`
+    const body = await file.arrayBuffer()
 
-    await env.BUCKET.put(key, file.stream(), {
+    await env.BUCKET.put(key, body, {
       httpMetadata: {
         contentType: mime,
         contentDisposition: `inline; filename="${file.name.replace(/"/g, "")}"`,
@@ -58,33 +96,37 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000)
     const url = `/api/v1/files/${fileId}`
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          file_id: fileId,
-          url,
-          expires_at: expires.toISOString(),
-          metadata: {
-            filename: file.name,
-            size: file.size,
-            mime_type: mime,
-            dimensions: { width: 0, height: 0 },
-          },
-          storage: {
-            provider: "r2",
-            key,
-          },
-          type,
-          purpose,
+    return jsonResponse({
+      success: true,
+      data: {
+        file_id: fileId,
+        url,
+        expires_at: expires.toISOString(),
+        metadata: {
+          filename: file.name,
+          size: file.size,
+          mime_type: mime,
+          dimensions: { width: 0, height: 0 },
         },
-      }),
-      { status: 200, headers: { "content-type": "application/json", ...corsHeaders } }
-    )
+        storage: {
+          provider: "r2",
+          key,
+        },
+        type,
+        purpose,
+      },
+    })
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL", message: err?.message || "Internal error" } }),
-      { status: 500, headers: { "content-type": "application/json", ...corsHeaders } }
+    return jsonResponse(
+      {
+        success: false,
+        error: {
+          code: "INTERNAL",
+          message: err?.message || "Internal error",
+          stack: err?.stack || null,
+        },
+      },
+      500
     )
   }
 }
