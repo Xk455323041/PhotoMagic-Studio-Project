@@ -225,20 +225,9 @@ const ResultPreview: React.FC<ResultPreviewProps> = ({
             variant="primary"
             leftIcon={<Download className="h-5 w-5" />}
             onClick={() => {
-              if (processedFileUrl) {
-                // 创建下载链接
-                const link = document.createElement('a')
-                link.href = processedFileUrl
-                link.download = processedFileName
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-                toast.success('下载开始')
-              } else {
-                onDownload()
-              }
+              onDownload()
+              toast.success('下载开始')
             }}
-            disabled={!processedFileUrl}
           >
             下载图片
           </Button>
