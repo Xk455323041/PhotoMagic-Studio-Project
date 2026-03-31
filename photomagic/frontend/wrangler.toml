@@ -1,10 +1,8 @@
-# Cloudflare Pages 配置文件
-# 适用于 PhotoMagic Studio 前端项目
+# Cloudflare Pages config for PhotoMagic frontend
+# Note: the BUCKET R2 binding must be configured in the Cloudflare Pages dashboard
+# under Settings -> Bindings for this Pages project.
 
 name = "photomagic-studio"
-type = "webpack"
-account_id = "your-account-id"  # 需要在 Cloudflare Dashboard 中设置
-workers_dev = true
 compatibility_date = "2024-03-24"
 compatibility_flags = ["nodejs_compat"]
 
@@ -12,25 +10,6 @@ compatibility_flags = ["nodejs_compat"]
 command = "npm install && npm run build"
 output_dir = "dist"
 
-[build.upload]
-format = "service-worker"
-
-[[routes]]
-pattern = "photomagic-studio.pages.dev/*"
-zone_name = "pages.dev"
-custom_domain = false
-
-# 环境变量配置
 [vars]
 NODE_VERSION = "18"
 NODE_ENV = "production"
-# API_BASE_URL = "https://api.example.com"  # 你的后端 API 地址
-# SENTRY_DSN = "your-sentry-dsn"
-# GOOGLE_ANALYTICS_ID = "UA-XXXXX-Y"
-
-# 部署配置
-[deployment]
-environments = [
-  { name = "production", branch = "main" },
-  { name = "preview", branch = "*" }
-]
