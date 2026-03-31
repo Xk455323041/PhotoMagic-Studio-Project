@@ -24,6 +24,13 @@ function isBrowserFile(value: unknown): value is File {
   )
 }
 
+function toLatin1SafeHeaderValue(value: string) {
+  return value
+    .normalize('NFKD')
+    .replace(/[^\x20-\x7E]/g, '_')
+    .slice(0, 180) || `upload-${Date.now()}.bin`
+}
+
 // API 响应基础接口
 export interface ApiResponse<T = any> {
   success: boolean
@@ -236,6 +243,7 @@ class ApiService {
     }
 
     const safeFileName = file.name || `upload-${Date.now()}.bin`
+    const headerSafeFileName = toLatin1SafeHeaderValue(safeFileName)
 
     const response = await this.client.post<ApiResponse<FileMetadata>>(
       '/upload',
@@ -243,7 +251,7 @@ class ApiService {
       {
         headers: {
           'Content-Type': file.type || 'application/octet-stream',
-          'X-File-Name': encodeURIComponent(safeFileName),
+          'X-File-Name': headerSafeFileName,
           'X-Upload-Type': type,
           'X-Upload-Purpose': purpose,
         },
