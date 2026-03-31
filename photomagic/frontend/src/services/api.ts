@@ -185,10 +185,27 @@ class ApiService {
   // 文件上传（优先使用原始二进制上传，避免 multipart 在 Pages Functions 下不稳定）
   async uploadFile(file: File, type: string, purpose: string): Promise<FileMetadata> {
     const { apiConfig } = useSettingsStore.getState()
+
+    if (!(file instanceof File)) {
+      console.error('[uploadFile] invalid file object:', file)
+      throw new Error('图片文件不存在或已失效，请重新选择图片后再试')
+    }
+
+    console.log('[uploadFile] file info:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified,
+      isFileInstance: file instanceof File,
+    })
     
     // 检查文件大小
     if (file.size > apiConfig.maxFileSize) {
       throw new Error(`文件大小超过限制 (最大 ${apiConfig.maxFileSize / 1024 / 1024}MB)`)
+    }
+
+    if (file.size <= 0) {
+      throw new Error('图片文件不存在或内容为空，请重新选择图片后再试')
     }
     
     // 检查文件格式
@@ -196,13 +213,15 @@ class ApiService {
       throw new Error('不支持的文件格式')
     }
 
+    const safeFileName = file.name || `upload-${Date.now()}.bin`
+
     const response = await this.client.post<ApiResponse<FileMetadata>>(
       '/upload',
       file,
       {
         headers: {
           'Content-Type': file.type || 'application/octet-stream',
-          'X-File-Name': encodeURIComponent(file.name),
+          'X-File-Name': encodeURIComponent(safeFileName),
           'X-Upload-Type': type,
           'X-Upload-Purpose': purpose,
         },

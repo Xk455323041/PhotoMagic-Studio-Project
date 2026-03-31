@@ -15,12 +15,25 @@ const BackgroundRemovalPage: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleFileUpload = (file: File) => {
+    console.log('[BackgroundRemovalPage] selected file:', {
+      name: file?.name,
+      size: file?.size,
+      type: file?.type,
+      isFileInstance: file instanceof File,
+    })
     setUploadedFile(file)
     setProcessed(false)
   }
 
   const handleProcess = async () => {
     if (!uploadedFile) return
+
+    console.log('[BackgroundRemovalPage] uploading file before process:', {
+      name: uploadedFile?.name,
+      size: uploadedFile?.size,
+      type: uploadedFile?.type,
+      isFileInstance: uploadedFile instanceof File,
+    })
 
     setProcessing(true)
     const startTime = Date.now()

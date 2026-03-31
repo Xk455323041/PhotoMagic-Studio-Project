@@ -38,6 +38,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       if (acceptedFiles.length > 0) {
         const file = acceptedFiles[0]
+        console.log('[FileUpload] accepted file:', {
+          name: file?.name,
+          size: file?.size,
+          type: file?.type,
+          lastModified: file?.lastModified,
+          isFileInstance: file instanceof File,
+        })
         onFileUpload(file)
         setUploadSuccess(true)
         

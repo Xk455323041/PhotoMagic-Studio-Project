@@ -56,6 +56,12 @@ const IdPhotoPage: React.FC = () => {
   ]
 
   const handleFileUpload = (file: File) => {
+    console.log('[IdPhotoPage] selected file:', {
+      name: file?.name,
+      size: file?.size,
+      type: file?.type,
+      isFileInstance: file instanceof File,
+    })
     setUploadedFile(file)
   }
 
@@ -64,6 +70,13 @@ const IdPhotoPage: React.FC = () => {
       toast.error('请先上传照片')
       return
     }
+
+    console.log('[IdPhotoPage] uploading file before process:', {
+      name: uploadedFile?.name,
+      size: uploadedFile?.size,
+      type: uploadedFile?.type,
+      isFileInstance: uploadedFile instanceof File,
+    })
     
     setProcessing(true)
     setProcessedResult(null)
