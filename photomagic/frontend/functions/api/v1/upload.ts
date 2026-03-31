@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: /api/v1/upload
-// Handles multipart/form-data uploads and stores original files in R2.
+// Supports raw binary uploads (preferred) and multipart/form-data fallback.
 
 export interface Env {
   BUCKET: R2Bucket
@@ -8,7 +8,7 @@ export interface Env {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp, X-File-Name, X-Upload-Type, X-Upload-Purpose",
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -32,6 +32,41 @@ function getBucketDiagnostics(bucket: unknown) {
   }
 }
 
+function sanitizeFilename(name: string) {
+  return name.replace(/[\r\n"]/g, "").trim() || "upload.bin"
+}
+
+function getExtension(filename: string) {
+  return filename.includes(".") ? filename.split(".").pop() || "bin" : "bin"
+}
+
+function buildSuccessResponse(fileId: string, key: string, fileName: string, mime: string, size: number, type: string, purpose: string) {
+  const now = new Date()
+  const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const url = `/api/v1/files/${fileId}`
+
+  return jsonResponse({
+    success: true,
+    data: {
+      file_id: fileId,
+      url,
+      expires_at: expires.toISOString(),
+      metadata: {
+        filename: fileName,
+        size,
+        mime_type: mime,
+        dimensions: { width: 0, height: 0 },
+      },
+      storage: {
+        provider: "r2",
+        key,
+      },
+      type,
+      purpose,
+    },
+  })
+}
+
 export const onRequestOptions: PagesFunction<Env> = async () => {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
@@ -46,7 +81,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           success: false,
           error: {
             code: "CONFIG_ERROR",
-            message: 'BUCKET binding is missing or invalid',
+            message: "BUCKET binding is missing or invalid",
             details: getBucketDiagnostics(env.BUCKET),
           },
         },
@@ -54,21 +89,92 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       )
     }
 
-    const contentType = request.headers.get("content-type") || ""
-    if (!contentType.toLowerCase().includes("multipart/form-data")) {
-      return jsonResponse(
-        {
-          success: false,
-          error: {
-            code: "UNSUPPORTED_MEDIA_TYPE",
-            message: "Expected multipart/form-data",
-            details: { contentType },
+    const contentType = request.headers.get("content-type") || "application/octet-stream"
+    const normalizedContentType = contentType.toLowerCase()
+
+    // Preferred path: raw binary upload.
+    if (!normalizedContentType.includes("multipart/form-data")) {
+      const rawFileName = sanitizeFilename(request.headers.get("x-file-name") || "upload.bin")
+      const uploadType = (request.headers.get("x-upload-type") || "").toString()
+      const uploadPurpose = (request.headers.get("x-upload-purpose") || "").toString()
+      const mime = contentType || "application/octet-stream"
+      const extension = getExtension(rawFileName)
+      const fileId = crypto.randomUUID()
+      const key = `uploads/${fileId}.${extension}`
+
+      let body: ArrayBuffer
+      try {
+        body = await request.arrayBuffer()
+      } catch (err: any) {
+        return jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "RAW_BODY_READ_FAILED",
+              message: err?.message || "Failed to read upload body",
+              details: {
+                contentType,
+                contentLength: request.headers.get("content-length"),
+                fileName: rawFileName,
+              },
+            },
           },
-        },
-        415
-      )
+          400
+        )
+      }
+
+      if (!body.byteLength) {
+        return jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "EMPTY_BODY",
+              message: "Upload body is empty",
+              details: {
+                contentType,
+                fileName: rawFileName,
+              },
+            },
+          },
+          400
+        )
+      }
+
+      try {
+        await env.BUCKET.put(key, body, {
+          httpMetadata: {
+            contentType: mime,
+            contentDisposition: `inline; filename="${rawFileName}"`,
+          },
+          customMetadata: {
+            originalName: rawFileName,
+            type: uploadType,
+            purpose: uploadPurpose,
+          },
+        })
+      } catch (err: any) {
+        return jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "R2_PUT_FAILED",
+              message: err?.message || "Failed to store file in R2",
+              details: {
+                key,
+                fileName: rawFileName,
+                size: body.byteLength,
+                type: mime,
+              },
+            },
+          },
+          500
+        )
+      }
+
+      return buildSuccessResponse(fileId, key, rawFileName, mime, body.byteLength, uploadType, uploadPurpose)
     }
 
+    // Fallback path: multipart/form-data.
     let form: FormData
     try {
       form = await request.formData()
@@ -112,8 +218,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     const fileId = crypto.randomUUID()
+    const safeName = sanitizeFilename(file.name)
     const mime = file.type || "application/octet-stream"
-    const extension = file.name.includes(".") ? file.name.split(".").pop() : "bin"
+    const extension = getExtension(safeName)
     const key = `uploads/${fileId}.${extension}`
 
     let body: ArrayBuffer
@@ -127,7 +234,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             code: "FILE_READ_FAILED",
             message: err?.message || "Failed to read uploaded file",
             details: {
-              name: file.name,
+              name: safeName,
               size: file.size,
               type: mime,
             },
@@ -141,10 +248,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       await env.BUCKET.put(key, body, {
         httpMetadata: {
           contentType: mime,
-          contentDisposition: `inline; filename="${file.name.replace(/"/g, "")}"`,
+          contentDisposition: `inline; filename="${safeName}"`,
         },
         customMetadata: {
-          originalName: file.name,
+          originalName: safeName,
           type,
           purpose,
         },
@@ -158,7 +265,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             message: err?.message || "Failed to store file in R2",
             details: {
               key,
-              name: file.name,
+              name: safeName,
               size: file.size,
               type: mime,
             },
@@ -168,30 +275,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       )
     }
 
-    const now = new Date()
-    const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    const url = `/api/v1/files/${fileId}`
-
-    return jsonResponse({
-      success: true,
-      data: {
-        file_id: fileId,
-        url,
-        expires_at: expires.toISOString(),
-        metadata: {
-          filename: file.name,
-          size: file.size,
-          mime_type: mime,
-          dimensions: { width: 0, height: 0 },
-        },
-        storage: {
-          provider: "r2",
-          key,
-        },
-        type,
-        purpose,
-      },
-    })
+    return buildSuccessResponse(fileId, key, safeName, mime, file.size, type, purpose)
   } catch (err: any) {
     return jsonResponse(
       {
