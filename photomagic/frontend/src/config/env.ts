@@ -15,7 +15,7 @@ export const envConfig = {
   // API 配置
   api: {
     baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
-    timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10),
+    timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '180000', 10),
   },
 
   // 功能开关
@@ -84,7 +84,7 @@ export const getEnvironmentConfig = () => {
       return {
         api: {
           baseUrl: envConfig.api.baseUrl,
-          timeout: 30000,
+          timeout: 180000,
         },
         features: {
           analytics: true,
@@ -100,7 +100,7 @@ export const getEnvironmentConfig = () => {
       return {
         api: {
           baseUrl: envConfig.api.baseUrl,
-          timeout: 30000,
+          timeout: 180000,
         },
         features: {
           analytics: true,

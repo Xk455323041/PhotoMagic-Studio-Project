@@ -110,7 +110,7 @@ const defaultApiConfig: ApiConfig = {
   // Use relative URL so it works with HTTPS sites and avoids Mixed Content.
   // Configure your reverse proxy to forward /api/v1 -> backend.
   endpoint: '/api/v1',
-  timeout: 30000,
+  timeout: 180000,
   maxFileSize: 20 * 1024 * 1024, // 20MB
   allowedFormats: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff'],
   enableCompression: true,

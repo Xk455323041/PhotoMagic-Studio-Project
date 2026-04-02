@@ -129,7 +129,7 @@ class VeLMagicXService {
     
     this.client = axios.create({
       baseURL: endpoint,
-      timeout: config.timeout || 30000,
+      timeout: config.timeout || 180000,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

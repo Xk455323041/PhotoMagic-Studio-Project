@@ -186,7 +186,7 @@ class ApiService {
   constructor() {
     this.client = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-      timeout: 30000,
+      timeout: 180000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -287,25 +287,18 @@ class ApiService {
       throw new Error('不支持的文件格式')
     }
 
-    const safeFileName = file.name || `upload-${Date.now()}.bin`
-    const headerSafeFileName = toLatin1SafeHeaderValue(safeFileName)
-    const uploadTypeSafe = toLatin1SafeHeaderValue(type || 'file')
-    const uploadPurposeSafe = toLatin1SafeHeaderValue(purpose || 'upload')
-    const fileNameQuery = toAsciiQueryValue(safeFileName)
-    const typeQuery = toAsciiQueryValue(type || 'file')
-    const purposeQuery = toAsciiQueryValue(purpose || 'upload')
+    const formData = new FormData()
+    formData.append('file', file, file.name || `upload-${Date.now()}.bin`)
+    formData.append('type', type || 'file')
+    formData.append('purpose', purpose || 'upload')
 
     const response = await this.client.post<ApiResponse<FileMetadata>>(
-      `/upload?filename=${fileNameQuery}&type=${typeQuery}&purpose=${purposeQuery}`,
-      file,
+      '/upload',
+      formData,
       {
         headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-          'X-File-Name': headerSafeFileName,
-          'X-Upload-Type': uploadTypeSafe,
-          'X-Upload-Purpose': uploadPurposeSafe,
+          'Content-Type': 'multipart/form-data',
         },
-        transformRequest: [(data) => data],
         onUploadProgress: (progressEvent) => {
           const progress = Math.round(
             (progressEvent.loaded * 100) / (progressEvent.total || file.size || 1)
