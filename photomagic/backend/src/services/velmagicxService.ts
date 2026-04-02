@@ -110,28 +110,40 @@ export class VeLMagicXService {
     headers['Authorization'] = `HMAC-SHA256 Credential=${this.accessKeyId}/${new Date().toISOString().split('T')[0]}/${this.region}/volcengine/request, SignedHeaders=${Object.keys(headers).map(k => k.toLowerCase()).join(';')}, Signature=${signature}`;
 
     try {
-      logger.info('Calling VeLMagicX API', { action });
+      logger.info('Calling VeLMagicX API', {
+        action,
+        endpoint: this.endpoint,
+        region: this.region,
+        serviceId: this.serviceId,
+      });
 
       const response = await axios.post(this.endpoint, body, {
         headers,
-        timeout: 30000
+        timeout: 120000
       });
 
       logger.info('VeLMagicX API call successful', {
         action,
-        requestId: response.headers['x-request-id']
+        requestId: response.headers['x-request-id'],
+        hasResult: !!response.data?.Result,
+        responseKeys: response.data ? Object.keys(response.data) : [],
       });
 
       return response.data;
     } catch (error: any) {
       logger.error('VeLMagicX API call failed', {
         action,
+        endpoint: this.endpoint,
         error: error.message,
+        code: error.code,
         status: error.response?.status,
-        requestId: error.response?.headers?.['x-request-id']
+        requestId: error.response?.headers?.['x-request-id'],
+        responseData: error.response?.data || null,
       });
 
-      if (error.response?.status === 403) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('VeLMagicX请求超时，请稍后重试');
+      } else if (error.response?.status === 403) {
         throw new Error('API权限不足，请检查AccessKey配置和权限');
       } else if (error.response?.status === 400) {
         throw new Error('请求参数错误，请检查参数格式');

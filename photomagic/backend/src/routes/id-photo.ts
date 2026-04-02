@@ -7,7 +7,8 @@ const router = express.Router();
 
 router.post('/', async (req, res, next) => {
   try {
-    const { file_id, parameters } = req.body;
+    const { file_id } = req.body;
+    const parameters = (req.body?.parameters || {}) as IDPhotoParams;
     
     if (!file_id) {
       const response: ApiResponse = {

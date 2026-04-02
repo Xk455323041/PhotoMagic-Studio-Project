@@ -148,7 +148,11 @@ const IdPhotoPage: React.FC = () => {
         }
       }
       
-      const result = await apiService.idPhotoProcessing(uploadResult.file_id, params)
+      const task = await apiService.createIdPhotoTask(uploadResult.file_id, params)
+      toast.dismiss()
+      toast.loading('正在生成证件照，请稍候...')
+
+      const result = await apiService.waitForIdPhotoTask(task.task_id)
       toast.dismiss()
       toast.success('证件照生成成功')
       

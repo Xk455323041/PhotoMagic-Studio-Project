@@ -43,7 +43,8 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       return res.status(400).json(response);
     }
 
-    const { type, purpose } = req.body;
+    const type = (req.body?.type || req.query?.type) as string | undefined;
+    const purpose = (req.body?.purpose || req.query?.purpose) as string | undefined;
     if (!type || !purpose) {
       const response: ApiResponse = {
         success: false,

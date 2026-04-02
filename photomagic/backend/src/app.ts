@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
+import path from 'path';
 import env from './config/env';
 import logger from './config/logger';
 import backgroundRemovalRouter from './routes/background-removal';
@@ -12,6 +13,8 @@ import photoRestorationRouter from './routes/photo-restoration';
 import healthRouter from './routes/health';
 import uploadRouter from './routes/upload';
 import resultsRouter from './routes/results';
+import internalIdPhotoRouter from './routes/internal-id-photo';
+import idPhotoTasksRouter from './routes/id-photo-tasks';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -48,16 +51,19 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // 请求日志
 app.use(requestLogger);
 
-
+// 暴露临时结果目录，供 Pages/外部代理回拉处理结果
+app.use('/temp', express.static(path.join(process.cwd(), 'temp')));
 
 // API路由
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/upload', uploadRouter);
 app.use('/api/v1/background-removal', backgroundRemovalRouter);
 app.use('/api/v1/id-photo', idPhotoRouter);
+app.use('/api/v1/id-photo/tasks', idPhotoTasksRouter);
 app.use('/api/v1/background-replacement', backgroundReplacementRouter);
 app.use('/api/v1/photo-restoration', photoRestorationRouter);
 app.use('/api/v1/results', resultsRouter);
+app.use('/api/v1/internal/id-photo', internalIdPhotoRouter);
 
 // 404处理
 app.use('*', (req, res) => {

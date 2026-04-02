@@ -42,7 +42,6 @@ function toAsciiQueryValue(value: string) {
   )
 }
 
-// API 响应基础接口
 export interface ApiResponse<T = any> {
   success: boolean
   data?: T
@@ -54,7 +53,6 @@ export interface ApiResponse<T = any> {
   message?: string
 }
 
-// 文件元数据接口
 export interface FileMetadata {
   file_id: string
   url: string
@@ -76,7 +74,6 @@ export interface FileMetadata {
   purpose: string
 }
 
-// 图片处理参数接口
 export interface BackgroundRemovalParams {
   model?: 'u2net' | 'modnet' | 'bria'
   alpha_matting?: boolean
@@ -86,15 +83,38 @@ export interface BackgroundRemovalParams {
 }
 
 export interface IDPhotoParams {
-  size_type?: 'one_inch' | 'two_inch' | 'small_one_inch' | 'small_two_inch' | 'custom'
-  custom_size?: {
-    width: number
-    height: number
+  photo_type?: 'id_card' | 'passport' | 'visa' | 'driver_license' | 'custom'
+  background?: {
+    type: 'solid' | 'gradient' | 'custom_image'
+    color?: string
+    gradient?: {
+      start: string
+      end: string
+      angle: number
+    }
+    custom_image?: string
   }
-  background_color?: 'white' | 'red' | 'blue' | 'transparent'
-  dpi?: 300 | 600
-  crop_style?: 'standard' | 'tight' | 'loose'
-  enhance?: boolean
+  size?: {
+    type: '大一寸' | '小一寸' | '大两寸' | '小两寸' | '标准一寸' | '标准两寸' | 'custom'
+    width_mm?: number
+    height_mm?: number
+    dpi?: 150 | 300 | 600
+  }
+  portrait?: {
+    position: 'center' | { x: number; y: number }
+    zoom: number
+    beauty?: {
+      enabled: boolean
+      skin_smooth: number
+      eye_brighten: number
+      teeth_whiten: number
+    }
+  }
+  output?: {
+    format: 'jpg' | 'png'
+    quality: number
+    layout: 'single' | '4x6' | '8x10'
+  }
 }
 
 export interface BackgroundReplacementParams {
@@ -133,7 +153,31 @@ export interface ProcessingResult {
     format?: string
     parameters?: any
     note?: string
+    [key: string]: any
   }
+  layout_url?: string
+  comparison_url?: string
+  animation_url?: string
+}
+
+export interface IDPhotoTaskResult {
+  result_id: string
+  url: string
+  layout_url?: string
+  expires_at: string
+  processing_time: number
+  metadata?: any
+}
+
+export interface IDPhotoTaskResponse {
+  task_id: string
+  file_id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  created_at: string
+  started_at?: string
+  completed_at?: string
+  result?: IDPhotoTaskResult
+  error?: string
 }
 
 class ApiService {
@@ -152,28 +196,22 @@ class ApiService {
   }
 
   private setupInterceptors() {
-    // 请求拦截器
     this.client.interceptors.request.use(
       (config) => {
         const timestamp = Date.now()
         config.headers['X-Request-Timestamp'] = timestamp.toString()
         return config
       },
-      (error) => {
-        return Promise.reject(error)
-      }
+      (error) => Promise.reject(error)
     )
 
-    // 响应拦截器
     this.client.interceptors.response.use(
-      (response: AxiosResponse) => {
-        return response
-      },
+      (response: AxiosResponse) => response,
       (error: AxiosError<ApiResponse>) => {
         if (error.response) {
           const status = error.response.status
           const data = error.response.data
-          
+
           switch (status) {
             case 400:
               toast.error(data?.error?.message || '请求参数错误')
@@ -210,19 +248,17 @@ class ApiService {
         } else {
           toast.error('请求配置错误')
         }
-        
+
         return Promise.reject(error)
       }
     )
   }
 
-  // 健康检查
   async healthCheck(): Promise<any> {
     const response = await this.client.get<ApiResponse>('/health')
     return response.data.data
   }
 
-  // 文件上传（优先使用原始二进制上传，避免 multipart 在 Pages Functions 下不稳定）
   async uploadFile(file: File, type: string, purpose: string): Promise<FileMetadata> {
     const { apiConfig } = useSettingsStore.getState()
 
@@ -238,8 +274,7 @@ class ApiService {
       lastModified: file.lastModified,
       isFileInstance: isBrowserFile(file),
     })
-    
-    // 检查文件大小
+
     if (file.size > apiConfig.maxFileSize) {
       throw new Error(`文件大小超过限制 (最大 ${apiConfig.maxFileSize / 1024 / 1024}MB)`)
     }
@@ -247,8 +282,7 @@ class ApiService {
     if (file.size <= 0) {
       throw new Error('图片文件不存在或内容为空，请重新选择图片后再试')
     }
-    
-    // 检查文件格式
+
     if (!apiConfig.allowedFormats.includes(file.type)) {
       throw new Error('不支持的文件格式')
     }
@@ -280,11 +314,10 @@ class ApiService {
         },
       }
     )
-    
+
     return response.data.data!
   }
 
-  // 背景移除
   async backgroundRemoval(fileId: string, params: BackgroundRemovalParams = {}): Promise<ProcessingResult> {
     const response = await this.client.post<ApiResponse<ProcessingResult>>(
       '/background-removal',
@@ -293,24 +326,69 @@ class ApiService {
         parameters: params
       }
     )
-    
+
     return response.data.data!
   }
 
-  // 证件照制作
-  async idPhotoProcessing(fileId: string, params: IDPhotoParams = {}): Promise<ProcessingResult> {
-    const response = await this.client.post<ApiResponse<ProcessingResult>>(
-      '/id-photo',
+  async createIdPhotoTask(fileId: string, params: IDPhotoParams = {}): Promise<IDPhotoTaskResponse> {
+    const response = await this.client.post<ApiResponse<IDPhotoTaskResponse>>(
+      '/id-photo/tasks',
       {
         file_id: fileId,
         parameters: params
       }
     )
-    
+
     return response.data.data!
   }
 
-  // 背景替换
+  async getIdPhotoTask(taskId: string): Promise<IDPhotoTaskResponse> {
+    const response = await this.client.get<ApiResponse<IDPhotoTaskResponse>>(
+      `/id-photo/tasks/${encodeURIComponent(taskId)}`
+    )
+
+    return response.data.data!
+  }
+
+  async waitForIdPhotoTask(
+    taskId: string,
+    options: { intervalMs?: number; timeoutMs?: number } = {}
+  ): Promise<ProcessingResult> {
+    const intervalMs = options.intervalMs ?? 2000
+    const timeoutMs = options.timeoutMs ?? 180000
+    const start = Date.now()
+
+    while (true) {
+      const task = await this.getIdPhotoTask(taskId)
+
+      if (task.status === 'completed' && task.result) {
+        return {
+          result_id: task.result.result_id,
+          url: task.result.url,
+          layout_url: task.result.layout_url,
+          expires_at: task.result.expires_at,
+          processing_time: task.result.processing_time,
+          metadata: task.result.metadata || {},
+        }
+      }
+
+      if (task.status === 'failed') {
+        throw new Error(task.error || '证件照处理失败')
+      }
+
+      if (Date.now() - start > timeoutMs) {
+        throw new Error('证件照处理超时，请稍后重试')
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+  }
+
+  async idPhotoProcessing(fileId: string, params: IDPhotoParams = {}): Promise<ProcessingResult> {
+    const task = await this.createIdPhotoTask(fileId, params)
+    return await this.waitForIdPhotoTask(task.task_id)
+  }
+
   async backgroundReplacement(foregroundFileId: string, backgroundFileId: string, params: BackgroundReplacementParams = {}): Promise<ProcessingResult> {
     const response = await this.client.post<ApiResponse<ProcessingResult>>(
       '/background-replacement',
@@ -320,11 +398,10 @@ class ApiService {
         parameters: params
       }
     )
-    
+
     return response.data.data!
   }
 
-  // 下载处理结果
   async downloadResult(resultId: string): Promise<Blob> {
     const response = await this.client.get(`/results/${resultId}`, {
       responseType: 'blob',
@@ -336,7 +413,6 @@ class ApiService {
     return response.data as Blob
   }
 
-  // 老照片修复
   async photoRestoration(fileId: string, params: PhotoRestorationParams = {}): Promise<ProcessingResult> {
     const response = await this.client.post<ApiResponse<ProcessingResult>>(
       '/photo-restoration',
@@ -345,7 +421,7 @@ class ApiService {
         parameters: params
       }
     )
-    
+
     return response.data.data!
   }
 }
