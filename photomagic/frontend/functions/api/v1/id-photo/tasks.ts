@@ -35,26 +35,91 @@ function getBackendBaseUrl(env: Env): string {
   return raw.replace(/\/$/, '').replace(/\/internal\/id-photo$/, '')
 }
 
+function maskHeaders(headers: Headers): Record<string, string> {
+  const hidden = new Set(['authorization', 'cookie', 'x-api-key', 'cf-access-jwt-assertion'])
+  const result: Record<string, string> = {}
+  for (const [key, value] of headers.entries()) {
+    result[key] = hidden.has(key.toLowerCase()) ? '[redacted]' : value
+  }
+  return result
+}
+
+function summarizeBody(body: unknown) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return {
+      kind: body === null ? 'null' : typeof body,
+      preview: typeof body === 'string' ? body.slice(0, 500) : body,
+    }
+  }
+
+  const record = body as Record<string, unknown>
+  const parameters = record.parameters && typeof record.parameters === 'object' && !Array.isArray(record.parameters)
+    ? record.parameters as Record<string, unknown>
+    : null
+
+  return {
+    kind: 'object',
+    keys: Object.keys(record),
+    file_id: record.file_id ?? null,
+    file_id_type: typeof record.file_id,
+    parameters_keys: parameters ? Object.keys(parameters) : [],
+    parameters_preview: parameters,
+  }
+}
+
 export const onRequestOptions: PagesFunction<Env> = async () => {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const startedAt = Date.now()
+  const requestId = crypto.randomUUID()
+
   try {
     const body = await request.json().catch(() => null)
+    const rawApiUrl = sanitizeString(env.ID_PHOTO_API_URL)
     const backendBaseUrl = getBackendBaseUrl(env)
     const targetUrl = `${backendBaseUrl}/tasks`
+    const outboundBody = JSON.stringify(body || {})
+    const outboundHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Pages-Debug-Request-Id': requestId,
+    }
+
+    console.log('[pages:id-photo:tasks] request:start', {
+      requestId,
+      rawApiUrl,
+      backendBaseUrl,
+      targetUrl,
+      method: request.method,
+      url: request.url,
+      headers: maskHeaders(request.headers),
+      bodySummary: summarizeBody(body),
+      cf: (request as Request & { cf?: unknown }).cf ?? null,
+    })
 
     const resp = await fetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(body || {}),
+      headers: outboundHeaders,
+      body: outboundBody,
     })
 
     const text = await resp.text()
+    const durationMs = Date.now() - startedAt
+
+    console.log('[pages:id-photo:tasks] request:upstream-response', {
+      requestId,
+      targetUrl,
+      durationMs,
+      requestBodyPreview: outboundBody.slice(0, 1000),
+      requestHeaders: outboundHeaders,
+      responseStatus: resp.status,
+      responseOk: resp.ok,
+      responseHeaders: maskHeaders(resp.headers),
+      responsePreview: text.slice(0, 2000),
+    })
+
     return new Response(text, {
       status: resp.status,
       headers: {
@@ -63,6 +128,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       },
     })
   } catch (err: any) {
+    const durationMs = Date.now() - startedAt
+
+    console.error('[pages:id-photo:tasks] request:error', {
+      requestId,
+      durationMs,
+      message: err?.message || 'Unknown error',
+      stack: err?.stack || null,
+      cause: err?.cause ? String(err.cause) : null,
+    })
+
     return jsonResponse({
       success: false,
       error: {
