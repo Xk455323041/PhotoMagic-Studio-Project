@@ -19,6 +19,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = env.port || 3000;
 
 // 安全中间件
@@ -34,6 +35,8 @@ app.use(cors({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
   max: 100, // 每个IP限制100个请求
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
     error: {
@@ -42,7 +45,13 @@ const limiter = rateLimit({
     }
   }
 });
-app.use(limiter);
+
+const disableRateLimit = process.env.DISABLE_RATE_LIMIT === '1';
+if (!disableRateLimit) {
+  app.use(limiter);
+} else {
+  logger.warn('Rate limit middleware disabled via DISABLE_RATE_LIMIT=1');
+}
 
 // 解析中间件
 app.use(express.json({ limit: '50mb' }));

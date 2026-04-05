@@ -16,7 +16,12 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
       statusCode,
       duration: `${duration}ms`,
       ip,
-      userAgent
+      userAgent,
+      origin: headers.origin,
+      referer: headers.referer,
+      xForwardedFor: headers['x-forwarded-for'],
+      xRealIp: headers['x-real-ip'],
+      cfConnectingIp: headers['cf-connecting-ip']
     };
 
     if (statusCode >= 500) {
