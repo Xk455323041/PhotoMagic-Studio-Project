@@ -3,6 +3,8 @@
 
 export interface Env {
   ID_PHOTO_API_URL?: string
+  ID_PHOTO_API_TOKEN?: string
+  ID_PHOTO_API_KEY?: string
 }
 
 const corsHeaders = {
@@ -11,12 +13,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp",
 }
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "content-type": "application/json",
       ...corsHeaders,
+      ...extraHeaders,
     },
   })
 }
@@ -29,36 +32,54 @@ function sanitizeString(value: unknown, fallback = ""): string {
 function getBackendBaseUrl(env: Env): string {
   const raw = sanitizeString(env.ID_PHOTO_API_URL)
   if (!raw) {
-    throw new Error('ID_PHOTO_API_URL is not configured')
+    throw new Error("ID_PHOTO_API_URL is not configured")
   }
 
-  return raw.replace(/\/$/, '').replace(/\/internal\/id-photo$/, '')
+  return raw.replace(/\/$/, "")
+}
+
+function buildAuthHeaders(env: Env): Record<string, string> {
+  const headers: Record<string, string> = {}
+
+  const token = sanitizeString(env.ID_PHOTO_API_TOKEN)
+  const apiKey = sanitizeString(env.ID_PHOTO_API_KEY)
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+
+  if (apiKey) {
+    headers["X-API-Key"] = apiKey
+  }
+
+  return headers
 }
 
 function maskHeaders(headers: Headers): Record<string, string> {
-  const hidden = new Set(['authorization', 'cookie', 'x-api-key', 'cf-access-jwt-assertion'])
+  const hidden = new Set(["authorization", "cookie", "x-api-key", "cf-access-jwt-assertion"])
   const result: Record<string, string> = {}
   for (const [key, value] of headers.entries()) {
-    result[key] = hidden.has(key.toLowerCase()) ? '[redacted]' : value
+    result[key] = hidden.has(key.toLowerCase()) ? "[redacted]" : value
   }
   return result
 }
 
 function summarizeBody(body: unknown) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return {
-      kind: body === null ? 'null' : typeof body,
-      preview: typeof body === 'string' ? body.slice(0, 500) : body,
+      kind: body === null ? "null" : typeof body,
+      preview: typeof body === "string" ? body.slice(0, 500) : body,
     }
   }
 
   const record = body as Record<string, unknown>
-  const parameters = record.parameters && typeof record.parameters === 'object' && !Array.isArray(record.parameters)
-    ? record.parameters as Record<string, unknown>
-    : null
+  const parameters =
+    record.parameters && typeof record.parameters === "object" && !Array.isArray(record.parameters)
+      ? (record.parameters as Record<string, unknown>)
+      : null
 
   return {
-    kind: 'object',
+    kind: "object",
     keys: Object.keys(record),
     file_id: record.file_id ?? null,
     file_id_type: typeof record.file_id,
@@ -81,13 +102,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const backendBaseUrl = getBackendBaseUrl(env)
     const targetUrl = `${backendBaseUrl}/tasks`
     const outboundBody = JSON.stringify(body || {})
-    const outboundHeaders = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-Pages-Debug-Request-Id': requestId,
+    const outboundHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "X-Pages-Debug-Request-Id": requestId,
+      ...buildAuthHeaders(env),
     }
 
-    console.log('[pages:id-photo:tasks] request:start', {
+    console.log("[pages:id-photo:tasks] request:start", {
       requestId,
       rawApiUrl,
       backendBaseUrl,
@@ -100,7 +122,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     })
 
     const resp = await fetch(targetUrl, {
-      method: 'POST',
+      method: "POST",
       headers: outboundHeaders,
       body: outboundBody,
     })
@@ -108,12 +130,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const text = await resp.text()
     const durationMs = Date.now() - startedAt
 
-    console.log('[pages:id-photo:tasks] request:upstream-response', {
+    console.log("[pages:id-photo:tasks] request:upstream-response", {
       requestId,
       targetUrl,
       durationMs,
       requestBodyPreview: outboundBody.slice(0, 1000),
-      requestHeaders: outboundHeaders,
+      requestHeaders: {
+        ...outboundHeaders,
+        Authorization: outboundHeaders.Authorization ? "[redacted]" : undefined,
+        "X-API-Key": outboundHeaders["X-API-Key"] ? "[redacted]" : undefined,
+      },
       responseStatus: resp.status,
       responseOk: resp.ok,
       responseHeaders: maskHeaders(resp.headers),
@@ -123,27 +149,36 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return new Response(text, {
       status: resp.status,
       headers: {
-        'content-type': 'application/json',
+        "content-type": "application/json",
         ...corsHeaders,
+        "X-Debug-Request-Id": requestId,
+        "X-Upstream-Status": String(resp.status),
+        "X-Upstream-Url": targetUrl,
       },
     })
   } catch (err: any) {
     const durationMs = Date.now() - startedAt
 
-    console.error('[pages:id-photo:tasks] request:error', {
+    console.error("[pages:id-photo:tasks] request:error", {
       requestId,
       durationMs,
-      message: err?.message || 'Unknown error',
+      message: err?.message || "Unknown error",
       stack: err?.stack || null,
       cause: err?.cause ? String(err.cause) : null,
     })
 
-    return jsonResponse({
-      success: false,
-      error: {
-        code: 'INTERNAL',
-        message: err?.message || 'Internal error',
+    return jsonResponse(
+      {
+        success: false,
+        error: {
+          code: "INTERNAL",
+          message: err?.message || "Internal error",
+        },
       },
-    }, 500)
+      500,
+      {
+        "X-Debug-Request-Id": requestId,
+      }
+    )
   }
 }
