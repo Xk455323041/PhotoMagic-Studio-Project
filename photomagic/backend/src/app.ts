@@ -1,5 +1,5 @@
 import express from 'express';
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
@@ -22,14 +22,32 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = env.port || 3000;
 
+const corsOriginAllowlist = env.corsOrigin
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (corsOriginAllowlist.includes(origin)) {
+      return callback(null, true);
+    }
+
+    logger.warn('Blocked by CORS policy', { origin, allowlist: corsOriginAllowlist });
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+};
+
 // 安全中间件
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors({
-  origin: env.corsOrigin,
-  credentials: true
-}));
+app.use(cors(corsOptions));
 
 // 速率限制
 const limiter = rateLimit({
