@@ -1,8 +1,10 @@
 // Cloudflare Pages Function: /api/v1/upload
-// Supports raw binary uploads (preferred) and multipart/form-data fallback.
+// Proxies uploads to backend /api/v1/upload so uploaded files land in backend temp storage.
 
 export interface Env {
-  BUCKET: R2Bucket
+  BACKEND_API_URL?: string
+  BACKEND_API_TOKEN?: string
+  BACKEND_API_KEY?: string
 }
 
 const corsHeaders = {
@@ -11,60 +13,55 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Timestamp, X-File-Name, X-Upload-Type, X-Upload-Purpose",
 }
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json", ...corsHeaders },
-  })
-}
-
-function getBucketDiagnostics(bucket: unknown) {
-  const anyBucket = bucket as any
-  return {
-    hasBucket: !!bucket,
-    bucketType: typeof bucket,
-    hasPut: typeof anyBucket?.put,
-    hasGet: typeof anyBucket?.get,
-    hasHead: typeof anyBucket?.head,
-    hasList: typeof anyBucket?.list,
-    ctorName: anyBucket?.constructor?.name || null,
-    ownKeys: bucket ? Object.keys(anyBucket).slice(0, 20) : [],
-  }
-}
-
-function sanitizeFilename(name: string) {
-  return name.replace(/[\r\n"]/g, "").trim() || "upload.bin"
-}
-
-function getExtension(filename: string) {
-  return filename.includes(".") ? filename.split(".").pop() || "bin" : "bin"
-}
-
-function buildSuccessResponse(fileId: string, key: string, fileName: string, mime: string, size: number, type: string, purpose: string) {
-  const now = new Date()
-  const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  const url = `/api/v1/files/${fileId}`
-
-  return jsonResponse({
-    success: true,
-    data: {
-      file_id: fileId,
-      url,
-      expires_at: expires.toISOString(),
-      metadata: {
-        filename: fileName,
-        size,
-        mime_type: mime,
-        dimensions: { width: 0, height: 0 },
-      },
-      storage: {
-        provider: "r2",
-        key,
-      },
-      type,
-      purpose,
+    headers: {
+      "content-type": "application/json",
+      ...corsHeaders,
+      ...extraHeaders,
     },
   })
+}
+
+function sanitizeString(value: unknown, fallback = ""): string {
+  if (typeof value !== "string") return fallback
+  return value.trim()
+}
+
+function getBackendBaseUrl(env: Env): string {
+  const raw = sanitizeString(env.BACKEND_API_URL)
+  if (!raw) {
+    throw new Error("BACKEND_API_URL is not configured")
+  }
+
+  return raw.replace(/\/$/, "")
+}
+
+function buildAuthHeaders(env: Env): Record<string, string> {
+  const headers: Record<string, string> = {}
+
+  const token = sanitizeString(env.BACKEND_API_TOKEN)
+  const apiKey = sanitizeString(env.BACKEND_API_KEY)
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+
+  if (apiKey) {
+    headers["X-API-Key"] = apiKey
+  }
+
+  return headers
+}
+
+function maskHeaders(headers: Headers): Record<string, string> {
+  const hidden = new Set(["authorization", "cookie", "x-api-key", "cf-access-jwt-assertion"])
+  const result: Record<string, string> = {}
+  for (const [key, value] of headers.entries()) {
+    result[key] = hidden.has(key.toLowerCase()) ? "[redacted]" : value
+  }
+  return result
 }
 
 export const onRequestOptions: PagesFunction<Env> = async () => {
@@ -72,140 +69,17 @@ export const onRequestOptions: PagesFunction<Env> = async () => {
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const startedAt = Date.now()
+  const requestId = crypto.randomUUID()
+
   try {
-    const bucket = env.BUCKET as unknown as { put?: Function }
+    const backendBaseUrl = getBackendBaseUrl(env)
+    const targetUrl = `${backendBaseUrl}/upload`
+    const formData = await request.formData()
 
-    if (!bucket || typeof bucket.put !== "function") {
-      return jsonResponse(
-        {
-          success: false,
-          error: {
-            code: "CONFIG_ERROR",
-            message: "BUCKET binding is missing or invalid",
-            details: getBucketDiagnostics(env.BUCKET),
-          },
-        },
-        500
-      )
-    }
-
-    const contentType = request.headers.get("content-type") || "application/octet-stream"
-    const normalizedContentType = contentType.toLowerCase()
-
-    // Preferred path: raw binary upload.
-    if (!normalizedContentType.includes("multipart/form-data")) {
-      const url = new URL(request.url)
-      const rawFileName = sanitizeFilename(
-        url.searchParams.get("filename") || request.headers.get("x-file-name") || "upload.bin"
-      )
-      const uploadType = (
-        url.searchParams.get("type") || request.headers.get("x-upload-type") || ""
-      ).toString()
-      const uploadPurpose = (
-        url.searchParams.get("purpose") || request.headers.get("x-upload-purpose") || ""
-      ).toString()
-      const mime = contentType || "application/octet-stream"
-      const extension = getExtension(rawFileName)
-      const fileId = crypto.randomUUID()
-      const key = `uploads/${fileId}.${extension}`
-
-      let body: ArrayBuffer
-      try {
-        body = await request.arrayBuffer()
-      } catch (err: any) {
-        return jsonResponse(
-          {
-            success: false,
-            error: {
-              code: "RAW_BODY_READ_FAILED",
-              message: err?.message || "Failed to read upload body",
-              details: {
-                contentType,
-                contentLength: request.headers.get("content-length"),
-                fileName: rawFileName,
-              },
-            },
-          },
-          400
-        )
-      }
-
-      if (!body.byteLength) {
-        return jsonResponse(
-          {
-            success: false,
-            error: {
-              code: "EMPTY_BODY",
-              message: "Upload body is empty",
-              details: {
-                contentType,
-                fileName: rawFileName,
-              },
-            },
-          },
-          400
-        )
-      }
-
-      try {
-        await env.BUCKET.put(key, body, {
-          httpMetadata: {
-            contentType: mime,
-            contentDisposition: `inline; filename="${rawFileName}"`,
-          },
-          customMetadata: {
-            originalName: rawFileName,
-            type: uploadType,
-            purpose: uploadPurpose,
-          },
-        })
-      } catch (err: any) {
-        return jsonResponse(
-          {
-            success: false,
-            error: {
-              code: "R2_PUT_FAILED",
-              message: err?.message || "Failed to store file in R2",
-              details: {
-                key,
-                fileName: rawFileName,
-                size: body.byteLength,
-                type: mime,
-              },
-            },
-          },
-          500
-        )
-      }
-
-      return buildSuccessResponse(fileId, key, rawFileName, mime, body.byteLength, uploadType, uploadPurpose)
-    }
-
-    // Fallback path: multipart/form-data.
-    let form: FormData
-    try {
-      form = await request.formData()
-    } catch (err: any) {
-      return jsonResponse(
-        {
-          success: false,
-          error: {
-            code: "FORMDATA_PARSE_FAILED",
-            message: err?.message || "Failed to parse multipart form data",
-            details: {
-              contentType,
-              contentLength: request.headers.get("content-length"),
-              userAgent: request.headers.get("user-agent"),
-            },
-          },
-        },
-        400
-      )
-    }
-
-    const file = form.get("file")
-    const type = (form.get("type") || "").toString()
-    const purpose = (form.get("purpose") || "").toString()
+    const file = formData.get("file")
+    const type = sanitizeString(formData.get("type"))
+    const purpose = sanitizeString(formData.get("purpose"))
 
     if (!(file instanceof File)) {
       return jsonResponse(
@@ -216,84 +90,102 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             message: "Missing form field: file",
             details: {
               receivedType: file === null ? "null" : typeof file,
-              formKeys: Array.from(form.keys()),
+              formKeys: Array.from(formData.keys()),
             },
           },
         },
-        400
-      )
-    }
-
-    const fileId = crypto.randomUUID()
-    const safeName = sanitizeFilename(file.name)
-    const mime = file.type || "application/octet-stream"
-    const extension = getExtension(safeName)
-    const key = `uploads/${fileId}.${extension}`
-
-    let body: ArrayBuffer
-    try {
-      body = await file.arrayBuffer()
-    } catch (err: any) {
-      return jsonResponse(
+        400,
         {
-          success: false,
-          error: {
-            code: "FILE_READ_FAILED",
-            message: err?.message || "Failed to read uploaded file",
-            details: {
-              name: safeName,
-              size: file.size,
-              type: mime,
-            },
-          },
-        },
-        500
+          "X-Debug-Request-Id": requestId,
+        }
       )
     }
 
-    try {
-      await env.BUCKET.put(key, body, {
-        httpMetadata: {
-          contentType: mime,
-          contentDisposition: `inline; filename="${safeName}"`,
-        },
-        customMetadata: {
-          originalName: safeName,
-          type,
-          purpose,
-        },
-      })
-    } catch (err: any) {
-      return jsonResponse(
-        {
-          success: false,
-          error: {
-            code: "R2_PUT_FAILED",
-            message: err?.message || "Failed to store file in R2",
-            details: {
-              key,
-              name: safeName,
-              size: file.size,
-              type: mime,
-            },
-          },
-        },
-        500
-      )
+    const outboundFormData = new FormData()
+    outboundFormData.append("file", file, file.name)
+    outboundFormData.append("type", type)
+    outboundFormData.append("purpose", purpose)
+
+    const outboundHeaders: Record<string, string> = {
+      "Accept": "application/json",
+      "X-Pages-Debug-Request-Id": requestId,
+      ...buildAuthHeaders(env),
     }
 
-    return buildSuccessResponse(fileId, key, safeName, mime, file.size, type, purpose)
+    console.log("[pages:upload] request:start", {
+      requestId,
+      backendBaseUrl,
+      targetUrl,
+      method: request.method,
+      url: request.url,
+      headers: maskHeaders(request.headers),
+      file: {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      },
+      type,
+      purpose,
+      cf: (request as Request & { cf?: unknown }).cf ?? null,
+    })
+
+    const resp = await fetch(targetUrl, {
+      method: "POST",
+      headers: outboundHeaders,
+      body: outboundFormData,
+    })
+
+    const text = await resp.text()
+    const durationMs = Date.now() - startedAt
+
+    console.log("[pages:upload] request:upstream-response", {
+      requestId,
+      targetUrl,
+      durationMs,
+      requestHeaders: {
+        ...outboundHeaders,
+        Authorization: outboundHeaders.Authorization ? "[redacted]" : undefined,
+        "X-API-Key": outboundHeaders["X-API-Key"] ? "[redacted]" : undefined,
+      },
+      responseStatus: resp.status,
+      responseOk: resp.ok,
+      responseHeaders: maskHeaders(resp.headers),
+      responsePreview: text.slice(0, 2000),
+    })
+
+    return new Response(text, {
+      status: resp.status,
+      headers: {
+        "content-type": resp.headers.get("content-type") || "application/json",
+        ...corsHeaders,
+        "X-Debug-Request-Id": requestId,
+        "X-Upstream-Status": String(resp.status),
+        "X-Upstream-Url": targetUrl,
+      },
+    })
   } catch (err: any) {
+    const durationMs = Date.now() - startedAt
+
+    console.error("[pages:upload] request:error", {
+      requestId,
+      durationMs,
+      message: err?.message || "Internal error",
+      stack: err?.stack || null,
+      cause: err?.cause ? String(err.cause) : null,
+    })
+
     return jsonResponse(
       {
         success: false,
         error: {
           code: "INTERNAL",
           message: err?.message || "Internal error",
-          stack: err?.stack || null,
         },
       },
-      500
+      500,
+      {
+        "X-Debug-Request-Id": requestId,
+      }
     )
   }
 }
