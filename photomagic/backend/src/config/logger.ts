@@ -1,16 +1,19 @@
 import winston from 'winston'
 import env from './env'
 
-const { combine, timestamp, printf, colorize, align } = winston.format
+const { combine, timestamp, printf, colorize, align, errors } = winston.format
 
 // 自定义日志格式
-const logFormat = printf(({ level, message, timestamp }) => {
-  return `[${timestamp}] ${level}: ${message}`
+const logFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
+  const metaString = meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : ''
+  const stackString = stack ? `\n${stack}` : ''
+  return `[${timestamp}] ${level}: ${message}${metaString}${stackString}`
 })
 
 const logger = winston.createLogger({
   level: env.logLevel,
   format: combine(
+    errors({ stack: true }),
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     align(),
     logFormat

@@ -131,26 +131,32 @@ export class VeLMagicXService {
 
       return response.data;
     } catch (error: any) {
+      const status = error.response?.status;
+      const requestId = error.response?.headers?.['x-request-id'] || error.response?.headers?.['x-tt-logid'] || null;
+      const responseData = error.response?.data || null;
+
       logger.error('VeLMagicX API call failed', {
         action,
         endpoint: this.endpoint,
         error: error.message,
         code: error.code,
-        status: error.response?.status,
-        requestId: error.response?.headers?.['x-request-id'],
-        responseData: error.response?.data || null,
+        status,
+        requestId,
+        responseData,
       });
 
       if (error.code === 'ECONNABORTED') {
         throw new Error('VeLMagicX请求超时，请稍后重试');
-      } else if (error.response?.status === 403) {
-        throw new Error('API权限不足，请检查AccessKey配置和权限');
-      } else if (error.response?.status === 400) {
-        throw new Error('请求参数错误，请检查参数格式');
-      } else if (error.response?.status === 429) {
-        throw new Error('请求频率过高，请稍后再试');
+      } else if (status === 403) {
+        throw new Error(`VeLMagicX鉴权失败(403)，请检查AccessKey配置和权限。requestId=${requestId || 'unknown'}`);
+      } else if (status === 400) {
+        throw new Error(`VeLMagicX请求参数错误(400)：${JSON.stringify(responseData)}`);
+      } else if (status === 429) {
+        throw new Error('VeLMagicX请求频率过高，请稍后再试');
+      } else if (status) {
+        throw new Error(`VeLMagicX调用失败(status=${status}, requestId=${requestId || 'unknown'})：${JSON.stringify(responseData)}`);
       } else {
-        throw new Error('VeLMagicX服务暂时不可用，请稍后再试');
+        throw new Error(`VeLMagicX服务暂时不可用：${error.message || 'unknown error'}`);
       }
     }
   }
