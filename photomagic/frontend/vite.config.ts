@@ -4,6 +4,8 @@ import { resolve } from 'path'
 import compression from 'vite-plugin-compression'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const isCloudflarePages = Boolean(process.env.CF_PAGES)
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -16,28 +18,32 @@ export default defineConfig({
       algorithm: 'brotliCompress',
       ext: '.br',
     }),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-      manifest: {
-        name: 'PhotoMagic Studio',
-        short_name: 'PhotoMagic',
-        description: '智能图片处理平台',
-        theme_color: '#3b82f6',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-        ],
-      },
-    }),
+    ...(!isCloudflarePages
+      ? [
+          VitePWA({
+            registerType: 'autoUpdate',
+            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+            manifest: {
+              name: 'PhotoMagic Studio',
+              short_name: 'PhotoMagic',
+              description: '智能图片处理平台',
+              theme_color: '#3b82f6',
+              icons: [
+                {
+                  src: 'pwa-192x192.png',
+                  sizes: '192x192',
+                  type: 'image/png',
+                },
+                {
+                  src: 'pwa-512x512.png',
+                  sizes: '512x512',
+                  type: 'image/png',
+                },
+              ],
+            },
+          }),
+        ]
+      : []),
   ],
   resolve: {
     alias: {
