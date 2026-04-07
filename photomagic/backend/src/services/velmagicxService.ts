@@ -13,18 +13,22 @@ export class VeLMagicXService {
   private serviceId: string;
   private region: string;
   private endpoint: string;
+  private secretMode: 'raw' | 'base64-decoded';
 
   constructor() {
     this.accessKeyId = env.velmagicxAccessKeyId;
-    this.secretAccessKey = this.normalizeSecretKey(env.velmagicxSecretAccessKey);
+    const normalizedSecret = this.normalizeSecretKey(env.velmagicxSecretAccessKey);
+    this.secretAccessKey = normalizedSecret.value;
+    this.secretMode = normalizedSecret.mode;
     this.serviceId = env.velmagicxServiceId;
     this.region = env.velmagicxRegion;
     this.endpoint = env.velmagicxEndpoint;
+    logger.info(`[VeLMagicXDebug] init endpoint=${this.endpoint} region=${this.region} serviceId=${this.serviceId} secretMode=${this.secretMode}`);
   }
 
-  private normalizeSecretKey(raw: string): string {
+  private normalizeSecretKey(raw: string): { value: string; mode: 'raw' | 'base64-decoded' } {
     if (!raw) {
-      return raw;
+      return { value: raw, mode: 'raw' };
     }
 
     const trimmed = raw.trim();
@@ -32,24 +36,19 @@ export class VeLMagicXService {
     const looksLikeBase64 = trimmed.length % 4 === 0 && base64Pattern.test(trimmed);
 
     if (!looksLikeBase64) {
-      logger.info('VeLMagicX secret key mode', { secretMode: 'raw' });
-      return trimmed;
+      return { value: trimmed, mode: 'raw' };
     }
 
     try {
       const decoded = Buffer.from(trimmed, 'base64').toString('utf8').trim();
       if (decoded && /^[A-Za-z0-9_-]+$/.test(decoded)) {
-        logger.info('VeLMagicX secret key mode', { secretMode: 'base64-decoded' });
-        return decoded;
+        return { value: decoded, mode: 'base64-decoded' };
       }
     } catch (error: any) {
-      logger.warn('Failed to decode VeLMagicX secret key as base64, falling back to raw', {
-        error: error?.message || 'unknown error',
-      });
+      logger.warn(`[VeLMagicXDebug] secret decode failed error=${error?.message || 'unknown error'}`);
     }
 
-    logger.info('VeLMagicX secret key mode', { secretMode: 'raw' });
-    return trimmed;
+    return { value: trimmed, mode: 'raw' };
   }
 
   /**
@@ -140,6 +139,7 @@ export class VeLMagicXService {
     headers['Authorization'] = `HMAC-SHA256 Credential=${this.accessKeyId}/${new Date().toISOString().split('T')[0]}/${this.region}/volcengine/request, SignedHeaders=${Object.keys(headers).map(k => k.toLowerCase()).join(';')}, Signature=${signature}`;
 
     try {
+      logger.info(`[VeLMagicXDebug] request action=${action} endpoint=${this.endpoint} region=${this.region} serviceId=${this.serviceId} secretMode=${this.secretMode}`);
       logger.info('Calling VeLMagicX API', {
         action,
         endpoint: this.endpoint,
@@ -164,7 +164,15 @@ export class VeLMagicXService {
       const status = error.response?.status;
       const requestId = error.response?.headers?.['x-request-id'] || error.response?.headers?.['x-tt-logid'] || null;
       const responseData = error.response?.data || null;
+      const responsePreview = (() => {
+        try {
+          return JSON.stringify(responseData);
+        } catch {
+          return String(responseData);
+        }
+      })();
 
+      logger.error(`[VeLMagicXDebug] failure action=${action} status=${status || 'none'} code=${error.code || 'none'} requestId=${requestId || 'unknown'} secretMode=${this.secretMode} endpoint=${this.endpoint} serviceId=${this.serviceId} response=${responsePreview}`);
       logger.error('VeLMagicX API call failed', {
         action,
         endpoint: this.endpoint,
