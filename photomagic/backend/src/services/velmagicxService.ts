@@ -16,10 +16,40 @@ export class VeLMagicXService {
 
   constructor() {
     this.accessKeyId = env.velmagicxAccessKeyId;
-    this.secretAccessKey = env.velmagicxSecretAccessKey;
+    this.secretAccessKey = this.normalizeSecretKey(env.velmagicxSecretAccessKey);
     this.serviceId = env.velmagicxServiceId;
     this.region = env.velmagicxRegion;
     this.endpoint = env.velmagicxEndpoint;
+  }
+
+  private normalizeSecretKey(raw: string): string {
+    if (!raw) {
+      return raw;
+    }
+
+    const trimmed = raw.trim();
+    const base64Pattern = /^[A-Za-z0-9+/=]+$/;
+    const looksLikeBase64 = trimmed.length % 4 === 0 && base64Pattern.test(trimmed);
+
+    if (!looksLikeBase64) {
+      logger.info('VeLMagicX secret key mode', { secretMode: 'raw' });
+      return trimmed;
+    }
+
+    try {
+      const decoded = Buffer.from(trimmed, 'base64').toString('utf8').trim();
+      if (decoded && /^[A-Za-z0-9_-]+$/.test(decoded)) {
+        logger.info('VeLMagicX secret key mode', { secretMode: 'base64-decoded' });
+        return decoded;
+      }
+    } catch (error: any) {
+      logger.warn('Failed to decode VeLMagicX secret key as base64, falling back to raw', {
+        error: error?.message || 'unknown error',
+      });
+    }
+
+    logger.info('VeLMagicX secret key mode', { secretMode: 'raw' });
+    return trimmed;
   }
 
   /**
