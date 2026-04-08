@@ -125,7 +125,7 @@ class VeLMagicXService {
     this.config = config
     this.serviceId = config.serviceId
     
-    const endpoint = config.endpoint || 'https://velmagicx.volcengineapi.com'
+    const endpoint = config.endpoint || 'https://cv.cn-beijing.volcengineapi.com'
     
     this.client = axios.create({
       baseURL: endpoint,
