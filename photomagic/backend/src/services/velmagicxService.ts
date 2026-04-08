@@ -1,11 +1,13 @@
-import axios from 'axios';
-import crypto from 'crypto';
 import env from '../config/env';
 import logger from '../config/logger';
 
 /**
- * 火山引擎 VeLMagicX 服务
- * 提供AI图片增强、人像分割、图像修复等功能
+ * veImageX / 火山引擎接入适配层（第一阶段骨架）
+ *
+ * 当前状态：
+ * - 已停止使用错误的“自定义 endpoint + Action + 手写 HMAC”调用方式。
+ * - 后续应切换到官方 Node.js SDK（@volcengine/openapi）或其等价官方接入方式。
+ * - 在未完成正式 SDK 接入前，所有能力调用统一抛出明确错误，避免继续请求错误域名。
  */
 export class VeLMagicXService {
   private accessKeyId: string;
@@ -23,7 +25,10 @@ export class VeLMagicXService {
     this.serviceId = env.velmagicxServiceId;
     this.region = env.velmagicxRegion;
     this.endpoint = env.velmagicxEndpoint;
-    logger.info(`[VeLMagicXDebug] init endpoint=${this.endpoint} region=${this.region} serviceId=${this.serviceId} secretMode=${this.secretMode}`);
+
+    logger.info(
+      `[VeLMagicXDebug] init provider=veImageX region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'} secretMode=${this.secretMode}`
+    );
   }
 
   private normalizeSecretKey(raw: string): { value: string; mode: 'raw' | 'base64-decoded' } {
@@ -51,158 +56,22 @@ export class VeLMagicXService {
     return { value: trimmed, mode: 'raw' };
   }
 
-  /**
-   * 生成签名
-   */
-  private generateSignature(
-    method: string,
-    path: string,
-    query: string,
-    headers: Record<string, string>,
-    body: string = ''
-  ): string {
-    const canonicalRequest = [
-      method,
-      path,
-      query,
-      Object.entries(headers)
-        .map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`)
-        .join('\n'),
-      '',
-      Object.keys(headers)
-        .map(k => k.toLowerCase())
-        .join(';'),
-      crypto.createHash('sha256').update(body).digest('hex')
-    ].join('\n');
-
-    const stringToSign = [
-      'HMAC-SHA256',
-      new Date().toISOString().split('.')[0] + 'Z',
-      crypto.createHash('sha256').update(canonicalRequest).digest('hex')
-    ].join('\n');
-
-    const kDate = crypto
-      .createHmac('sha256', this.secretAccessKey)
-      .update(new Date().toISOString().split('T')[0])
-      .digest();
-    
-    const kRegion = crypto
-      .createHmac('sha256', kDate)
-      .update(this.region)
-      .digest();
-    
-    const kService = crypto
-      .createHmac('sha256', kRegion)
-      .update('volcengine')
-      .digest();
-    
-    const kSigning = crypto
-      .createHmac('sha256', kService)
-      .update('request')
-      .digest();
-
-    return crypto
-      .createHmac('sha256', kSigning)
-      .update(stringToSign)
-      .digest('hex');
-  }
-
-  /**
-   * 调用VeLMagicX API
-   */
-  private async callApi(
-    action: string,
-    params: Record<string, any> = {}
-  ): Promise<any> {
+  private ensureConfigured(): void {
     if (!this.accessKeyId || !this.secretAccessKey) {
-      throw new Error('VeLMagicX API credentials not configured');
-    }
-
-    const method = 'POST';
-    const path = '/';
-    const query = '';
-    const body = JSON.stringify({
-      Action: action,
-      Version: '2021-08-01',
-      ...params
-    });
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Date': new Date().toISOString().split('.')[0] + 'Z',
-      'X-Content-Sha256': crypto.createHash('sha256').update(body).digest('hex'),
-      'Host': new URL(this.endpoint).hostname
-    };
-
-    const signature = this.generateSignature(method, path, query, headers, body);
-    
-    headers['Authorization'] = `HMAC-SHA256 Credential=${this.accessKeyId}/${new Date().toISOString().split('T')[0]}/${this.region}/volcengine/request, SignedHeaders=${Object.keys(headers).map(k => k.toLowerCase()).join(';')}, Signature=${signature}`;
-
-    try {
-      logger.info(`[VeLMagicXDebug] request action=${action} endpoint=${this.endpoint} region=${this.region} serviceId=${this.serviceId} secretMode=${this.secretMode}`);
-      logger.info('Calling VeLMagicX API', {
-        action,
-        endpoint: this.endpoint,
-        region: this.region,
-        serviceId: this.serviceId,
-      });
-
-      const response = await axios.post(this.endpoint, body, {
-        headers,
-        timeout: 120000
-      });
-
-      logger.info('VeLMagicX API call successful', {
-        action,
-        requestId: response.headers['x-request-id'],
-        hasResult: !!response.data?.Result,
-        responseKeys: response.data ? Object.keys(response.data) : [],
-      });
-
-      return response.data;
-    } catch (error: any) {
-      const status = error.response?.status;
-      const requestId = error.response?.headers?.['x-request-id'] || error.response?.headers?.['x-tt-logid'] || null;
-      const responseData = error.response?.data || null;
-      const responsePreview = (() => {
-        try {
-          return JSON.stringify(responseData);
-        } catch {
-          return String(responseData);
-        }
-      })();
-
-      logger.error(`[VeLMagicXDebug] failure action=${action} status=${status || 'none'} code=${error.code || 'none'} requestId=${requestId || 'unknown'} secretMode=${this.secretMode} endpoint=${this.endpoint} serviceId=${this.serviceId} response=${responsePreview}`);
-      logger.error('VeLMagicX API call failed', {
-        action,
-        endpoint: this.endpoint,
-        error: error.message,
-        code: error.code,
-        status,
-        requestId,
-        responseData,
-      });
-
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('VeLMagicX请求超时，请稍后重试');
-      } else if (status === 403) {
-        throw new Error(`VeLMagicX鉴权失败(403)，请检查AccessKey配置和权限。requestId=${requestId || 'unknown'}`);
-      } else if (status === 400) {
-        throw new Error(`VeLMagicX请求参数错误(400)：${JSON.stringify(responseData)}`);
-      } else if (status === 429) {
-        throw new Error('VeLMagicX请求频率过高，请稍后再试');
-      } else if (status) {
-        throw new Error(`VeLMagicX调用失败(status=${status}, requestId=${requestId || 'unknown'})：${JSON.stringify(responseData)}`);
-      } else {
-        throw new Error(`VeLMagicX服务暂时不可用：${error.message || 'unknown error'}`);
-      }
+      throw new Error('veImageX API credentials not configured');
     }
   }
 
-  /**
-   * 人像分割
-   * 智能分割人像与背景
-   */
+  private sdkMigrationError(capability: string): never {
+    logger.error(
+      `[VeLMagicXDebug] sdk-migration-required capability=${capability} region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'}`
+    );
+
+    throw new Error(
+      `veImageX 官方 Node SDK 接入尚未完成，当前已停用旧的自定义 endpoint/签名调用方式；请先完成 ${capability} 能力到官方 SDK 的映射后再调用。`
+    );
+  }
+
   async humanSegmentation(
     imageBase64: string,
     options: {
@@ -211,24 +80,16 @@ export class VeLMagicXService {
       background_color?: string;
     } = {}
   ): Promise<{
-    foreground?: string; // 前景图base64
-    mask?: string;      // 掩码图base64
-    score: number;      // 分割置信度
+    foreground?: string;
+    mask?: string;
+    score: number;
   }> {
-    const params = {
-      ImageBase64: imageBase64,
-      ServiceId: this.serviceId,
-      ...options
-    };
-
-    const result = await this.callApi('HumanSegmentation', params);
-    return result.Result;
+    void imageBase64;
+    void options;
+    this.ensureConfigured();
+    this.sdkMigrationError('humanSegmentation');
   }
 
-  /**
-   * 图像增强
-   * 提升图像质量、清晰度
-   */
   async imageEnhancement(
     imageBase64: string,
     options: {
@@ -237,25 +98,15 @@ export class VeLMagicXService {
       denoise_level?: 'low' | 'medium' | 'high';
     } = {}
   ): Promise<{
-    enhanced_image: string; // 增强后图像base64
-    quality_score: number;  // 质量评分
+    enhanced_image: string;
+    quality_score: number;
   }> {
-    const params = {
-      ImageBase64: imageBase64,
-      ServiceId: this.serviceId,
-      Mode: options.mode || 'general',
-      Scale: options.scale || 2,
-      DenoiseLevel: options.denoise_level || 'medium'
-    };
-
-    const result = await this.callApi('ImageEnhancement', params);
-    return result.Result;
+    void imageBase64;
+    void options;
+    this.ensureConfigured();
+    this.sdkMigrationError('imageEnhancement');
   }
 
-  /**
-   * 老照片修复
-   * 修复破损、划痕、褪色照片
-   */
   async oldPhotoRestoration(
     imageBase64: string,
     options: {
@@ -265,27 +116,16 @@ export class VeLMagicXService {
       enhance_details?: boolean;
     } = {}
   ): Promise<{
-    restored_image: string;  // 修复后图像base64
-    comparison_image?: string; // 对比图base64
-    restoration_score: number; // 修复评分
+    restored_image: string;
+    comparison_image?: string;
+    restoration_score: number;
   }> {
-    const params = {
-      ImageBase64: imageBase64,
-      ServiceId: this.serviceId,
-      RepairScratches: options.repair_scratches ?? true,
-      RepairStains: options.repair_stains ?? true,
-      Colorization: options.colorization ?? true,
-      EnhanceDetails: options.enhance_details ?? true
-    };
-
-    const result = await this.callApi('OldPhotoRestoration', params);
-    return result.Result;
+    void imageBase64;
+    void options;
+    this.ensureConfigured();
+    this.sdkMigrationError('oldPhotoRestoration');
   }
 
-  /**
-   * 背景替换
-   * 智能替换图片背景
-   */
   async backgroundReplacement(
     foregroundBase64: string,
     backgroundBase64: string,
@@ -296,27 +136,16 @@ export class VeLMagicXService {
       shadow?: boolean;
     } = {}
   ): Promise<{
-    result_image: string;     // 合成结果base64
-    composition_score: number; // 合成质量评分
+    result_image: string;
+    composition_score: number;
   }> {
-    const params = {
-      ForegroundImageBase64: foregroundBase64,
-      BackgroundImageBase64: backgroundBase64,
-      ServiceId: this.serviceId,
-      Position: options.position || { x: 0.5, y: 0.5 },
-      Scale: options.scale || 1.0,
-      BlendMode: options.blend_mode || 'normal',
-      AddShadow: options.shadow ?? true
-    };
-
-    const result = await this.callApi('BackgroundReplacement', params);
-    return result.Result;
+    void foregroundBase64;
+    void backgroundBase64;
+    void options;
+    this.ensureConfigured();
+    this.sdkMigrationError('backgroundReplacement');
   }
 
-  /**
-   * 证件照制作
-   * 专业证件照处理
-   */
   async idPhotoProcessing(
     imageBase64: string,
     options: {
@@ -326,26 +155,16 @@ export class VeLMagicXService {
       beauty_level?: number;
     } = {}
   ): Promise<{
-    id_photo: string;        // 证件照base64
-    layout_photo?: string;   // 排版照base64
-    compliance_score: number; // 合规性评分
+    id_photo: string;
+    layout_photo?: string;
+    compliance_score: number;
   }> {
-    const params = {
-      ImageBase64: imageBase64,
-      ServiceId: this.serviceId,
-      Size: options.size || '1inch',
-      BackgroundColor: options.background_color || '#ffffff',
-      ClothingTemplate: options.clothing_template,
-      BeautyLevel: options.beauty_level || 0.5
-    };
-
-    const result = await this.callApi('IDPhotoProcessing', params);
-    return result.Result;
+    void imageBase64;
+    void options;
+    this.ensureConfigured();
+    this.sdkMigrationError('idPhotoProcessing');
   }
 
-  /**
-   * 查询服务状态
-   */
   async getServiceStatus(): Promise<{
     service_id: string;
     status: 'active' | 'inactive' | 'suspended';
@@ -356,14 +175,9 @@ export class VeLMagicXService {
     };
     features: string[];
   }> {
-    const params = {
-      ServiceId: this.serviceId
-    };
-
-    const result = await this.callApi('GetServiceStatus', params);
-    return result.Result;
+    this.ensureConfigured();
+    this.sdkMigrationError('getServiceStatus');
   }
 }
 
-// 单例实例
 export const velmagicxService = new VeLMagicXService();

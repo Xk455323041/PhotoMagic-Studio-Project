@@ -61,8 +61,8 @@ const env: EnvConfig = {
   velmagicxAccessKeyId: process.env.VELMAGICX_ACCESS_KEY_ID || '',
   velmagicxSecretAccessKey: process.env.VELMAGICX_SECRET_ACCESS_KEY || '',
   velmagicxServiceId: process.env.VELMAGICX_SERVICE_ID || '',
-  velmagicxRegion: process.env.VELMAGICX_REGION || 'cn-beijing',
-  velmagicxEndpoint: process.env.VELMAGICX_ENDPOINT || 'https://cv.cn-beijing.volcengineapi.com',
+  velmagicxRegion: process.env.VELMAGICX_REGION || 'cn-north-1',
+  velmagicxEndpoint: process.env.VELMAGICX_ENDPOINT || '',
 
   storageType: (process.env.STORAGE_TYPE as EnvConfig['storageType']) || 'local',
   uploadDir: process.env.UPLOAD_DIR || './uploads',
