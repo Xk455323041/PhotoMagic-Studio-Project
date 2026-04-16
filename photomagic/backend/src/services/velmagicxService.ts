@@ -24,6 +24,11 @@ export class VeLMagicXService {
     passport: { widthMm: 33, heightMm: 48 },
   };
 
+  private readonly layoutPresetMap: Record<'4x6' | '8x10', { widthMm: number; heightMm: number; columns: number; rows: number; paddingPx: number }> = {
+    '4x6': { widthMm: 102, heightMm: 152, columns: 2, rows: 4, paddingPx: 24 },
+    '8x10': { widthMm: 203, heightMm: 254, columns: 4, rows: 4, paddingPx: 32 },
+  };
+
   constructor() {
     this.accessKeyId = env.velmagicxAccessKeyId;
     const normalizedSecret = this.normalizeSecretKey(env.velmagicxSecretAccessKey);
@@ -115,6 +120,7 @@ export class VeLMagicXService {
       size?: '1inch' | '2inch' | 'passport';
       background_color?: string;
       beauty_level?: number;
+      output_format?: 'jpg' | 'png';
     } = {}
   ): Promise<{ idPhotoBase64: string; width: number; height: number }> {
     const sizePreset = this.sizePresetMap[options.size || '1inch'];
@@ -138,7 +144,9 @@ export class VeLMagicXService {
       pipeline = pipeline.sharpen();
     }
 
-    const outputBuffer = await pipeline.png().toBuffer();
+    const outputBuffer = options.output_format === 'jpg'
+      ? await pipeline.jpeg({ quality: 92 }).toBuffer()
+      : await pipeline.png().toBuffer();
     return {
       idPhotoBase64: outputBuffer.toString('base64'),
       width,
@@ -146,38 +154,59 @@ export class VeLMagicXService {
     };
   }
 
-  private async buildLayoutPhoto(idPhotoBase64: string): Promise<string> {
+  private async buildLayoutPhoto(
+    idPhotoBase64: string,
+    options: {
+      layout?: 'single' | '4x6' | '8x10';
+      output_format?: 'jpg' | 'png';
+    } = {}
+  ): Promise<string | undefined> {
+    if (!options.layout || options.layout === 'single') {
+      return undefined;
+    }
+
     const dpi = 300;
-    const canvasWidth = this.mmToPx(102, dpi);
-    const canvasHeight = this.mmToPx(152, dpi);
-    const padding = 24;
+    const preset = this.layoutPresetMap[options.layout];
+    const canvasWidth = this.mmToPx(preset.widthMm, dpi);
+    const canvasHeight = this.mmToPx(preset.heightMm, dpi);
+    const padding = preset.paddingPx;
     const photoBuffer = Buffer.from(idPhotoBase64, 'base64');
     const metadata = await sharp(photoBuffer).metadata();
     const photoWidth = metadata.width || 0;
     const photoHeight = metadata.height || 0;
 
+    const usableWidth = canvasWidth - padding * (preset.columns + 1);
+    const usableHeight = canvasHeight - padding * (preset.rows + 1);
+    const scale = Math.min(1, usableWidth / (preset.columns * photoWidth), usableHeight / (preset.rows * photoHeight));
+    const tileWidth = Math.max(1, Math.floor(photoWidth * scale));
+    const tileHeight = Math.max(1, Math.floor(photoHeight * scale));
+    const tileBuffer = scale < 1
+      ? await sharp(photoBuffer).resize(tileWidth, tileHeight).toBuffer()
+      : photoBuffer;
+
     const composites: Array<{ input: Buffer; left: number; top: number }> = [];
-    for (let row = 0; row < 2; row += 1) {
-      for (let col = 0; col < 4; col += 1) {
+    for (let row = 0; row < preset.rows; row += 1) {
+      for (let col = 0; col < preset.columns; col += 1) {
         composites.push({
-          input: photoBuffer,
-          left: padding + col * (photoWidth + padding),
-          top: padding + row * (photoHeight + padding),
+          input: tileBuffer,
+          left: padding + col * (tileWidth + padding),
+          top: padding + row * (tileHeight + padding),
         });
       }
     }
 
-    const layoutBuffer = await sharp({
+    let layoutPipeline = sharp({
       create: {
         width: canvasWidth,
         height: canvasHeight,
         channels: 3,
         background: '#FFFFFF',
       },
-    })
-      .composite(composites)
-      .png()
-      .toBuffer();
+    }).composite(composites);
+
+    const layoutBuffer = options.output_format === 'jpg'
+      ? await layoutPipeline.jpeg({ quality: 92 }).toBuffer()
+      : await layoutPipeline.png().toBuffer();
 
     return layoutBuffer.toString('base64');
   }
@@ -263,6 +292,8 @@ export class VeLMagicXService {
       background_color?: string;
       clothing_template?: string;
       beauty_level?: number;
+      layout?: 'single' | '4x6' | '8x10';
+      output_format?: 'jpg' | 'png';
     } = {}
   ): Promise<{
     id_photo: string;
@@ -277,12 +308,15 @@ export class VeLMagicXService {
     );
 
     const { idPhotoBase64, width, height } = await this.composeIdPhoto(imageBase64, options);
-    const layoutPhotoBase64 = await this.buildLayoutPhoto(idPhotoBase64);
+    const layoutPhotoBase64 = await this.buildLayoutPhoto(idPhotoBase64, {
+      layout: options.layout,
+      output_format: options.output_format,
+    });
 
     logger.info('[VeLMagicXDebug] local-id-photo-fallback-complete', {
       width,
       height,
-      hasLayoutPhoto: true,
+      hasLayoutPhoto: !!layoutPhotoBase64,
       beautyLevel: options.beauty_level || 0,
     });
 

@@ -11,13 +11,19 @@ function mapSizeToVelmagicx(
     const width = Math.min(customSize.width_mm, customSize.height_mm);
     const height = Math.max(customSize.width_mm, customSize.height_mm);
 
-    if (width >= 34 && height >= 47) {
-      return '2inch';
-    }
+    const candidates: Array<{ name: '1inch' | '2inch' | 'passport'; width: number; height: number }> = [
+      { name: '1inch', width: 25, height: 35 },
+      { name: '2inch', width: 35, height: 49 },
+      { name: 'passport', width: 33, height: 48 },
+    ];
 
-    if (width >= 32 && height >= 46) {
-      return 'passport';
-    }
+    candidates.sort((a, b) => {
+      const da = Math.abs(a.width - width) + Math.abs(a.height - height);
+      const db = Math.abs(b.width - width) + Math.abs(b.height - height);
+      return da - db;
+    });
+
+    return candidates[0].name;
   }
 
   if (!sizeType) return '1inch';
@@ -86,10 +92,15 @@ export async function processIDPhotoWithVeLMagicX(
       beautyLevel,
     });
 
+    const outputFormat = params.output?.format || 'png';
+    const requestedLayout = params.output?.layout || 'single';
+
     const result = await velmagicxService.idPhotoProcessing(imageBase64, {
       size: velmagicxSize,
       background_color: backgroundColor,
       beauty_level: beautyLevel,
+      layout: requestedLayout,
+      output_format: outputFormat,
     });
 
     logger.info('Raw VeLMagicX ID photo response received', {
@@ -102,7 +113,6 @@ export async function processIDPhotoWithVeLMagicX(
       throw new Error('VeLMagicX did not return id_photo');
     }
 
-    const outputFormat = params.output?.format || 'png';
     const photoBuffer = Buffer.from(result.id_photo, 'base64');
     const saved = await saveProcessingResult(photoBuffer, outputFormat);
 
