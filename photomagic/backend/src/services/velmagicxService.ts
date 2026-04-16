@@ -114,6 +114,10 @@ export class VeLMagicXService {
     return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed) ? trimmed : '#FFFFFF';
   }
 
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
   private async composeIdPhoto(
     imageBase64: string,
     options: {
@@ -122,6 +126,12 @@ export class VeLMagicXService {
       beauty_level?: number;
       output_format?: 'jpg' | 'png';
       zoom?: number;
+      composition?: {
+        top_margin_ratio?: number;
+        bottom_margin_ratio?: number;
+        side_margin_ratio?: number;
+        zoom?: number;
+      };
     } = {}
   ): Promise<{ idPhotoBase64: string; width: number; height: number }> {
     const sizePreset = this.sizePresetMap[options.size || '1inch'];
@@ -134,18 +144,19 @@ export class VeLMagicXService {
     const sourceWidth = sourceMeta.width || width;
     const sourceHeight = sourceMeta.height || height;
 
-    const topMarginRatio = 0.12;
-    const bottomMarginRatio = 0.08;
-    const sideMarginRatio = 0.06;
-    const portraitAreaHeightRatio = 1 - topMarginRatio - bottomMarginRatio;
-    const portraitAreaWidthRatio = 1 - sideMarginRatio * 2;
-    const zoom = Math.max(0.85, Math.min(1.35, options.zoom || 1));
+    const composition = options.composition || {};
+    const topMarginRatio = this.clamp(composition.top_margin_ratio ?? 0.12, 0.05, 0.25);
+    const bottomMarginRatio = this.clamp(composition.bottom_margin_ratio ?? 0.08, 0.03, 0.2);
+    const sideMarginRatio = this.clamp(composition.side_margin_ratio ?? 0.06, 0.02, 0.18);
+    const portraitAreaHeightRatio = Math.max(0.2, 1 - topMarginRatio - bottomMarginRatio);
+    const portraitAreaWidthRatio = Math.max(0.2, 1 - sideMarginRatio * 2);
+    const zoom = this.clamp(composition.zoom ?? options.zoom ?? 1, 0.85, 1.35);
 
     const targetPortraitHeight = height * portraitAreaHeightRatio * zoom;
     const targetPortraitWidth = width * portraitAreaWidthRatio * zoom;
     const scale = Math.max(targetPortraitWidth / sourceWidth, targetPortraitHeight / sourceHeight);
-    const resizedWidth = Math.max(1, Math.round(sourceWidth * scale));
-    const resizedHeight = Math.max(1, Math.round(sourceHeight * scale));
+    const resizedWidth = Math.max(width, Math.round(sourceWidth * scale));
+    const resizedHeight = Math.max(height, Math.round(sourceHeight * scale));
 
     let pipeline = source.resize(resizedWidth, resizedHeight, {
       fit: 'cover',
@@ -166,16 +177,16 @@ export class VeLMagicXService {
       : pipeline.png().toBuffer());
 
     const left = Math.round((width - resizedWidth) / 2);
-    const top = Math.round(height * topMarginRatio - Math.max(0, (resizedHeight - targetPortraitHeight) / 2));
+    const desiredTop = Math.round(height * topMarginRatio - Math.max(0, (resizedHeight - targetPortraitHeight) / 2));
+    const extractLeft = Math.max(0, Math.min(resizedWidth - width, -left));
+    const extractTop = Math.max(0, Math.min(resizedHeight - height, -desiredTop));
 
-    const canvas = sharp({
-      create: {
-        width,
-        height,
-        channels: 3,
-        background: { r: background.r, g: background.g, b: background.b },
-      },
-    }).composite([{ input: portraitBuffer, left, top }]);
+    const canvas = sharp(portraitBuffer).extract({
+      left: extractLeft,
+      top: extractTop,
+      width,
+      height,
+    });
 
     const outputBuffer = options.output_format === 'jpg'
       ? await canvas.jpeg({ quality: 92 }).toBuffer()
@@ -329,6 +340,12 @@ export class VeLMagicXService {
       layout?: 'single' | '4x6' | '8x10';
       output_format?: 'jpg' | 'png';
       zoom?: number;
+      composition?: {
+        top_margin_ratio?: number;
+        bottom_margin_ratio?: number;
+        side_margin_ratio?: number;
+        zoom?: number;
+      };
     } = {}
   ): Promise<{
     id_photo: string;
@@ -354,6 +371,7 @@ export class VeLMagicXService {
       hasLayoutPhoto: !!layoutPhotoBase64,
       beautyLevel: options.beauty_level || 0,
       zoom: options.zoom || 1,
+      composition: options.composition || {},
     });
 
     return {

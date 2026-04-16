@@ -67,6 +67,12 @@ export interface IDPhotoParams {
   portrait?: {
     position: 'center' | { x: number; y: number };
     zoom: number;
+    composition?: {
+      top_margin_ratio?: number;
+      bottom_margin_ratio?: number;
+      side_margin_ratio?: number;
+      zoom?: number;
+    };
     beauty?: {
       enabled: boolean;
       skin_smooth: number;
