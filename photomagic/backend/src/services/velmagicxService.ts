@@ -29,6 +29,18 @@ export class VeLMagicXService {
     '8x10': { widthMm: 203, heightMm: 254, columns: 4, rows: 4, paddingPx: 32 },
   };
 
+  private readonly compositionPresetMap: Record<'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot', {
+    top_margin_ratio: number;
+    bottom_margin_ratio: number;
+    side_margin_ratio: number;
+    zoom: number;
+  }> = {
+    id_card_standard: { top_margin_ratio: 0.12, bottom_margin_ratio: 0.08, side_margin_ratio: 0.06, zoom: 1.0 },
+    passport_standard: { top_margin_ratio: 0.15, bottom_margin_ratio: 0.07, side_margin_ratio: 0.07, zoom: 1.02 },
+    tight_headshot: { top_margin_ratio: 0.08, bottom_margin_ratio: 0.06, side_margin_ratio: 0.05, zoom: 1.15 },
+    loose_headshot: { top_margin_ratio: 0.18, bottom_margin_ratio: 0.1, side_margin_ratio: 0.09, zoom: 0.94 },
+  };
+
   constructor() {
     this.accessKeyId = env.velmagicxAccessKeyId;
     const normalizedSecret = this.normalizeSecretKey(env.velmagicxSecretAccessKey);
@@ -127,6 +139,7 @@ export class VeLMagicXService {
       output_format?: 'jpg' | 'png';
       zoom?: number;
       composition?: {
+        preset?: 'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot';
         top_margin_ratio?: number;
         bottom_margin_ratio?: number;
         side_margin_ratio?: number;
@@ -145,12 +158,13 @@ export class VeLMagicXService {
     const sourceHeight = sourceMeta.height || height;
 
     const composition = options.composition || {};
-    const topMarginRatio = this.clamp(composition.top_margin_ratio ?? 0.12, 0.05, 0.25);
-    const bottomMarginRatio = this.clamp(composition.bottom_margin_ratio ?? 0.08, 0.03, 0.2);
-    const sideMarginRatio = this.clamp(composition.side_margin_ratio ?? 0.06, 0.02, 0.18);
+    const preset = composition.preset ? this.compositionPresetMap[composition.preset] : undefined;
+    const topMarginRatio = this.clamp(composition.top_margin_ratio ?? preset?.top_margin_ratio ?? 0.12, 0.05, 0.25);
+    const bottomMarginRatio = this.clamp(composition.bottom_margin_ratio ?? preset?.bottom_margin_ratio ?? 0.08, 0.03, 0.2);
+    const sideMarginRatio = this.clamp(composition.side_margin_ratio ?? preset?.side_margin_ratio ?? 0.06, 0.02, 0.18);
     const portraitAreaHeightRatio = Math.max(0.2, 1 - topMarginRatio - bottomMarginRatio);
     const portraitAreaWidthRatio = Math.max(0.2, 1 - sideMarginRatio * 2);
-    const zoom = this.clamp(composition.zoom ?? options.zoom ?? 1, 0.85, 1.35);
+    const zoom = this.clamp(composition.zoom ?? options.zoom ?? preset?.zoom ?? 1, 0.85, 1.35);
 
     const targetPortraitHeight = height * portraitAreaHeightRatio * zoom;
     const targetPortraitWidth = width * portraitAreaWidthRatio * zoom;
@@ -341,6 +355,7 @@ export class VeLMagicXService {
       output_format?: 'jpg' | 'png';
       zoom?: number;
       composition?: {
+        preset?: 'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot';
         top_margin_ratio?: number;
         bottom_margin_ratio?: number;
         side_margin_ratio?: number;

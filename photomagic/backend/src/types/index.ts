@@ -68,6 +68,7 @@ export interface IDPhotoParams {
     position: 'center' | { x: number; y: number };
     zoom: number;
     composition?: {
+      preset?: 'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot';
       top_margin_ratio?: number;
       bottom_margin_ratio?: number;
       side_margin_ratio?: number;
