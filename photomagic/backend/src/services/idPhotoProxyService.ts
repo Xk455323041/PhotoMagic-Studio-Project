@@ -3,7 +3,23 @@ import { saveProcessingResult } from './fileService';
 import { velmagicxService } from './velmagicxService';
 import logger from '../config/logger';
 
-function mapSizeToVelmagicx(sizeType?: string): '1inch' | '2inch' | 'passport' {
+function mapSizeToVelmagicx(
+  sizeType?: string,
+  customSize?: { width_mm?: number; height_mm?: number }
+): '1inch' | '2inch' | 'passport' {
+  if (customSize?.width_mm && customSize?.height_mm) {
+    const width = Math.min(customSize.width_mm, customSize.height_mm);
+    const height = Math.max(customSize.width_mm, customSize.height_mm);
+
+    if (width >= 34 && height >= 47) {
+      return '2inch';
+    }
+
+    if (width >= 32 && height >= 46) {
+      return 'passport';
+    }
+  }
+
   if (!sizeType) return '1inch';
 
   if (['2inch', '标准两寸', '大两寸', '小两寸'].includes(sizeType)) {
@@ -46,7 +62,10 @@ export async function processIDPhotoWithVeLMagicX(
       inputImagePreview: maskBase64Preview(imageBase64),
     });
 
-    const velmagicxSize = mapSizeToVelmagicx(params.size?.type);
+    const velmagicxSize = mapSizeToVelmagicx(params.size?.type, {
+      width_mm: params.size?.width_mm,
+      height_mm: params.size?.height_mm,
+    });
     const backgroundColor = normalizeBackgroundColor(params.background?.color);
     const beautyLevel = params.portrait?.beauty?.enabled
       ? Math.min(
