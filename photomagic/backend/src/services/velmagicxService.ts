@@ -121,6 +121,7 @@ export class VeLMagicXService {
       background_color?: string;
       beauty_level?: number;
       output_format?: 'jpg' | 'png';
+      zoom?: number;
     } = {}
   ): Promise<{ idPhotoBase64: string; width: number; height: number }> {
     const sizePreset = this.sizePresetMap[options.size || '1inch'];
@@ -128,10 +129,26 @@ export class VeLMagicXService {
     const height = this.mmToPx(sizePreset.heightMm);
     const background = this.hexToRgb(this.normalizeBackgroundColor(options.background_color));
     const inputBuffer = Buffer.from(imageBase64, 'base64');
+    const source = sharp(inputBuffer).rotate();
+    const sourceMeta = await source.metadata();
+    const sourceWidth = sourceMeta.width || width;
+    const sourceHeight = sourceMeta.height || height;
 
-    let pipeline = sharp(inputBuffer).rotate().resize(width, height, {
-      fit: 'contain',
-      background: { r: background.r, g: background.g, b: background.b, alpha: 1 },
+    const topMarginRatio = 0.12;
+    const bottomMarginRatio = 0.08;
+    const sideMarginRatio = 0.06;
+    const portraitAreaHeightRatio = 1 - topMarginRatio - bottomMarginRatio;
+    const portraitAreaWidthRatio = 1 - sideMarginRatio * 2;
+    const zoom = Math.max(0.85, Math.min(1.35, options.zoom || 1));
+
+    const targetPortraitHeight = height * portraitAreaHeightRatio * zoom;
+    const targetPortraitWidth = width * portraitAreaWidthRatio * zoom;
+    const scale = Math.max(targetPortraitWidth / sourceWidth, targetPortraitHeight / sourceHeight);
+    const resizedWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const resizedHeight = Math.max(1, Math.round(sourceHeight * scale));
+
+    let pipeline = source.resize(resizedWidth, resizedHeight, {
+      fit: 'cover',
       position: 'centre',
     });
 
@@ -144,9 +161,26 @@ export class VeLMagicXService {
       pipeline = pipeline.sharpen();
     }
 
+    const portraitBuffer = await (options.output_format === 'jpg'
+      ? pipeline.jpeg({ quality: 92 }).toBuffer()
+      : pipeline.png().toBuffer());
+
+    const left = Math.round((width - resizedWidth) / 2);
+    const top = Math.round(height * topMarginRatio - Math.max(0, (resizedHeight - targetPortraitHeight) / 2));
+
+    const canvas = sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: background.r, g: background.g, b: background.b },
+      },
+    }).composite([{ input: portraitBuffer, left, top }]);
+
     const outputBuffer = options.output_format === 'jpg'
-      ? await pipeline.jpeg({ quality: 92 }).toBuffer()
-      : await pipeline.png().toBuffer();
+      ? await canvas.jpeg({ quality: 92 }).toBuffer()
+      : await canvas.png().toBuffer();
+
     return {
       idPhotoBase64: outputBuffer.toString('base64'),
       width,
@@ -294,6 +328,7 @@ export class VeLMagicXService {
       beauty_level?: number;
       layout?: 'single' | '4x6' | '8x10';
       output_format?: 'jpg' | 'png';
+      zoom?: number;
     } = {}
   ): Promise<{
     id_photo: string;
@@ -318,6 +353,7 @@ export class VeLMagicXService {
       height,
       hasLayoutPhoto: !!layoutPhotoBase64,
       beautyLevel: options.beauty_level || 0,
+      zoom: options.zoom || 1,
     });
 
     return {

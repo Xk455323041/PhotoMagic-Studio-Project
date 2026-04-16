@@ -101,6 +101,7 @@ export async function processIDPhotoWithVeLMagicX(
       beauty_level: beautyLevel,
       layout: requestedLayout,
       output_format: outputFormat,
+      zoom: params.portrait?.zoom,
     });
 
     logger.info('Raw VeLMagicX ID photo response received', {
