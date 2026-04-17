@@ -3,6 +3,31 @@
 ## 🎯 项目概述
 PhotoMagic Studio 是一个智能图像处理平台，提供专业的图片处理功能，包括背景移除、证件照制作、背景替换、老照片修复等。
 
+## 🆕 当前证件照 fallback 规则说明
+
+后端当前已恢复证件照异步链路，并在正式 veImageX Node SDK 映射未补齐前，先使用本地 fallback 构图逻辑完成 `idPhotoProcessing`。
+
+当前支持 4 套构图 preset：
+- `id_card_standard`
+- `passport_standard`
+- `tight_headshot`
+- `loose_headshot`
+
+默认行为：
+- 如果调用方显式传 `portrait.composition.preset`，以后端收到的显式值为准
+- 如果未传 preset，系统会根据 `photo_type + size.type + width_mm/height_mm` 自动选择
+- 如果传了 `preset + 局部 composition 字段`，则先吃 preset，再用局部字段覆盖
+
+当前自动规则摘要：
+- 护照 / 签证 → `passport_standard`
+- 驾照 / 两寸倾向 → `tight_headshot`
+- 一寸 / 小尺寸倾向 → `loose_headshot`
+- 大一寸 / 常规身份证照 → `id_card_standard`
+- `33x48 custom` 会结合 `photo_type` 在 `passport_standard` 与 `id_card_standard` 间分流
+
+详细接口和参数说明见：
+- `photomagic/backend/README.md` 中的“证件照制作”章节
+
 ## 📊 项目完成状态
 
 ### ✅ 已完成的工作 (40%)

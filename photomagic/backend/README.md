@@ -178,6 +178,8 @@ POST /api/v1/id-photo
 Content-Type: application/json
 ```
 
+> 说明：`/api/v1/id-photo` 为同步接口；当前异步链路使用 `/api/v1/id-photo/tasks`，并已接入本地 fallback 构图逻辑。
+
 **请求体**:
 ```json
 {
@@ -191,6 +193,17 @@ Content-Type: application/json
     "size": {
       "type": "大一寸",
       "dpi": 300
+    },
+    "portrait": {
+      "position": "center",
+      "zoom": 1.0,
+      "composition": {
+        "preset": "id_card_standard",
+        "top_margin_ratio": 0.12,
+        "bottom_margin_ratio": 0.08,
+        "side_margin_ratio": 0.06,
+        "zoom": 1.0
+      }
     },
     "output": {
       "format": "jpg",
@@ -221,6 +234,114 @@ Content-Type: application/json
   }
 }
 ```
+
+##### 异步证件照任务接口
+```http
+POST /api/v1/id-photo/tasks
+GET /api/v1/id-photo/tasks/:taskId
+```
+
+**创建任务请求体**:
+```json
+{
+  "file_id": "file_123456789abcdef",
+  "parameters": {
+    "photo_type": "passport",
+    "background": {
+      "type": "solid",
+      "color": "#FFFFFF"
+    },
+    "size": {
+      "type": "custom",
+      "width_mm": 33,
+      "height_mm": 48
+    },
+    "portrait": {
+      "position": "center",
+      "zoom": 1.0,
+      "composition": {
+        "top_margin_ratio": 0.18
+      }
+    },
+    "output": {
+      "format": "jpg",
+      "quality": 90,
+      "layout": "single"
+    }
+  }
+}
+```
+
+**任务状态响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "task_id": "task_xxx",
+    "file_id": "file_123456789abcdef",
+    "status": "completed",
+    "result": {
+      "result_id": "result_xxx",
+      "url": "/temp/result_xxx.jpg",
+      "layout_url": null,
+      "expires_at": "2026-03-20T12:00:00Z",
+      "processing_time": 0.08,
+      "metadata": {
+        "format": "jpg"
+      }
+    }
+  }
+}
+```
+
+##### Fallback 构图 preset 与默认规则
+
+当前证件照异步链路在正式 veImageX Node SDK 能力未补齐前，`idPhotoProcessing` 走本地 fallback 构图逻辑。支持以下 preset：
+
+- `id_card_standard`
+- `passport_standard`
+- `tight_headshot`
+- `loose_headshot`
+
+**preset 参数优先级**：
+1. 如果请求显式传 `portrait.composition.preset`，优先使用显式值
+2. 如果未显式传 preset，系统根据 `photo_type + size.type + width_mm/height_mm` 自动推断
+3. 若同时传了 `preset` 和局部参数（如 `top_margin_ratio`），则先吃 preset，再用局部参数覆盖
+
+**当前自动推断规则**：
+
+| 条件 | 默认 preset |
+|------|--------------|
+| `photo_type=passport` / `visa` | `passport_standard` |
+| `photo_type=driver_license` | `tight_headshot` |
+| `size.type=标准两寸/大两寸/小两寸` | `tight_headshot` |
+| `size.type=标准一寸/小一寸` | `loose_headshot` |
+| `size.type=大一寸` | `id_card_standard` |
+| `custom 33x48` 且 `photo_type=custom` | `passport_standard` |
+| `custom 33x48` 且非 `custom` | `id_card_standard` |
+| 更大尺寸（如 `35x49`） | `tight_headshot` |
+| 更小尺寸（如 `22x32` / `25x35`） | `loose_headshot` |
+| 其他兜底 | `id_card_standard` |
+
+**内置 preset 默认值**：
+
+| preset | `top_margin_ratio` | `bottom_margin_ratio` | `side_margin_ratio` | `zoom` |
+|--------|--------------------:|----------------------:|--------------------:|-------:|
+| `id_card_standard` | 0.12 | 0.08 | 0.06 | 1.00 |
+| `passport_standard` | 0.15 | 0.07 | 0.07 | 1.02 |
+| `tight_headshot` | 0.08 | 0.06 | 0.05 | 1.15 |
+| `loose_headshot` | 0.18 | 0.10 | 0.09 | 0.94 |
+
+**composition 可调字段与边界**：
+- `top_margin_ratio`: `0.05 ~ 0.25`
+- `bottom_margin_ratio`: `0.03 ~ 0.20`
+- `side_margin_ratio`: `0.02 ~ 0.18`
+- `zoom`: `0.85 ~ 1.35`
+
+**推荐用法**：
+- 业务方不关心细节时：只传 `photo_type + size`，让系统自动选 preset
+- 业务方需要统一版式时：显式传 `preset`
+- 业务方需要精调时：传 `preset + 局部 composition 字段`
 
 #### 3. 背景替换
 ```http
