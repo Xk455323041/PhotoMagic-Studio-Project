@@ -3,6 +3,8 @@ import { saveProcessingResult } from './fileService';
 import { velmagicxService } from './velmagicxService';
 import logger from '../config/logger';
 
+type FallbackPreset = 'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot';
+
 function mapSizeToVelmagicx(
   sizeType?: string,
   customSize?: { width_mm?: number; height_mm?: number }
@@ -39,23 +41,100 @@ function mapSizeToVelmagicx(
   return '1inch';
 }
 
+function getNormalizedSizeMm(params: IDPhotoParams): { width: number; height: number } | null {
+  if (params.size?.width_mm && params.size?.height_mm) {
+    return {
+      width: Math.min(params.size.width_mm, params.size.height_mm),
+      height: Math.max(params.size.width_mm, params.size.height_mm),
+    };
+  }
+
+  const namedSizeMap: Record<string, { width: number; height: number }> = {
+    '小一寸': { width: 22, height: 32 },
+    '标准一寸': { width: 25, height: 35 },
+    '大一寸': { width: 33, height: 48 },
+    '小两寸': { width: 35, height: 45 },
+    '大两寸': { width: 35, height: 45 },
+    '标准两寸': { width: 35, height: 49 },
+    passport: { width: 33, height: 48 },
+    '护照': { width: 33, height: 48 },
+    '护照照片': { width: 33, height: 48 },
+  };
+
+  const named = params.size?.type ? namedSizeMap[params.size.type] : undefined;
+  return named ? { ...named } : null;
+}
+
 function inferCompositionPreset(
   params: IDPhotoParams,
   velmagicxSize: '1inch' | '2inch' | 'passport'
-): 'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot' {
-  if (params.photo_type === 'passport' || params.photo_type === 'visa') {
-    return 'passport_standard';
+): { preset: FallbackPreset; reason: string } {
+  const normalizedSize = getNormalizedSizeMm(params);
+  const width = normalizedSize?.width;
+  const height = normalizedSize?.height;
+  const sizeType = params.size?.type;
+
+  if (params.photo_type === 'passport') {
+    return { preset: 'passport_standard', reason: 'photo_type=passport' };
+  }
+
+  if (params.photo_type === 'visa') {
+    return { preset: 'passport_standard', reason: 'photo_type=visa' };
   }
 
   if (params.photo_type === 'driver_license') {
-    return 'tight_headshot';
+    return { preset: 'tight_headshot', reason: 'photo_type=driver_license' };
+  }
+
+  if (sizeType && ['passport', '护照', '护照照片'].includes(sizeType)) {
+    return { preset: 'passport_standard', reason: `size.type=${sizeType}` };
+  }
+
+  if (typeof width === 'number' && typeof height === 'number') {
+    if (Math.abs(width - 33) <= 1 && Math.abs(height - 48) <= 1) {
+      return {
+        preset: params.photo_type === 'custom' ? 'passport_standard' : 'id_card_standard',
+        reason: `custom_size≈33x48 photo_type=${params.photo_type || 'id_card'}`,
+      };
+    }
+
+    if (width >= 35 && height >= 45) {
+      return { preset: 'tight_headshot', reason: `custom_size_large=${width}x${height}` };
+    }
+
+    if (width <= 25 && height <= 35) {
+      return { preset: 'loose_headshot', reason: `custom_size_small=${width}x${height}` };
+    }
+  }
+
+  if (sizeType && ['标准两寸', '大两寸', '小两寸', '2inch'].includes(sizeType)) {
+    return { preset: 'tight_headshot', reason: `size.type=${sizeType}` };
+  }
+
+  if (sizeType && ['标准一寸', '小一寸', '1inch'].includes(sizeType)) {
+    return { preset: 'loose_headshot', reason: `size.type=${sizeType}` };
+  }
+
+  if (sizeType === '大一寸') {
+    return { preset: 'id_card_standard', reason: 'size.type=大一寸' };
   }
 
   if (params.photo_type === 'custom') {
-    return velmagicxSize === 'passport' ? 'passport_standard' : 'id_card_standard';
+    return {
+      preset: velmagicxSize === 'passport' ? 'passport_standard' : velmagicxSize === '2inch' ? 'tight_headshot' : 'id_card_standard',
+      reason: `photo_type=custom velmagicxSize=${velmagicxSize}`,
+    };
   }
 
-  return 'id_card_standard';
+  if (velmagicxSize === 'passport') {
+    return { preset: 'passport_standard', reason: 'velmagicxSize=passport' };
+  }
+
+  if (velmagicxSize === '2inch') {
+    return { preset: 'tight_headshot', reason: 'velmagicxSize=2inch' };
+  }
+
+  return { preset: 'id_card_standard', reason: 'default=id_card_standard' };
 }
 
 function normalizeBackgroundColor(color?: string): string {
@@ -107,7 +186,9 @@ export async function processIDPhotoWithVeLMagicX(
       : 0;
 
     const explicitComposition = params.portrait?.composition || {};
-    const inferredPreset = explicitComposition.preset || inferCompositionPreset(params, velmagicxSize);
+    const inferred = inferCompositionPreset(params, velmagicxSize);
+    const inferredPreset = explicitComposition.preset || inferred.preset;
+    const presetReason = explicitComposition.preset ? 'explicit preset override' : inferred.reason;
     const effectiveComposition = {
       ...explicitComposition,
       preset: inferredPreset,
@@ -119,6 +200,8 @@ export async function processIDPhotoWithVeLMagicX(
       beautyLevel,
       photoType: params.photo_type || 'id_card',
       inferredPreset,
+      presetReason,
+      normalizedSize: getNormalizedSizeMm(params),
       effectiveComposition,
     });
 
@@ -166,6 +249,7 @@ export async function processIDPhotoWithVeLMagicX(
       outputFormat,
       resultSize: saved.size,
       inferredPreset,
+      presetReason,
     });
 
     return {
