@@ -387,6 +387,7 @@ export class VeLMagicXService {
       beautyLevel: options.beauty_level || 0,
       zoom: options.zoom || 1,
       composition: options.composition || {},
+      effectivePreset: options.composition?.preset,
     });
 
     return {

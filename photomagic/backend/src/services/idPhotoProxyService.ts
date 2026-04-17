@@ -39,6 +39,25 @@ function mapSizeToVelmagicx(
   return '1inch';
 }
 
+function inferCompositionPreset(
+  params: IDPhotoParams,
+  velmagicxSize: '1inch' | '2inch' | 'passport'
+): 'id_card_standard' | 'passport_standard' | 'tight_headshot' | 'loose_headshot' {
+  if (params.photo_type === 'passport' || params.photo_type === 'visa') {
+    return 'passport_standard';
+  }
+
+  if (params.photo_type === 'driver_license') {
+    return 'tight_headshot';
+  }
+
+  if (params.photo_type === 'custom') {
+    return velmagicxSize === 'passport' ? 'passport_standard' : 'id_card_standard';
+  }
+
+  return 'id_card_standard';
+}
+
 function normalizeBackgroundColor(color?: string): string {
   if (!color || typeof color !== 'string') return '#FFFFFF';
   return color.trim() || '#FFFFFF';
@@ -61,6 +80,7 @@ export async function processIDPhotoWithVeLMagicX(
   try {
     logger.info('Starting VeLMagicX ID photo processing', {
       sizeType: params.size?.type,
+      photoType: params.photo_type,
       outputFormat: params.output?.format,
       backgroundType: params.background?.type,
       backgroundColor: params.background?.color,
@@ -86,10 +106,20 @@ export async function processIDPhotoWithVeLMagicX(
         )
       : 0;
 
+    const explicitComposition = params.portrait?.composition || {};
+    const inferredPreset = explicitComposition.preset || inferCompositionPreset(params, velmagicxSize);
+    const effectiveComposition = {
+      ...explicitComposition,
+      preset: inferredPreset,
+    };
+
     logger.info('Mapped VeLMagicX options', {
       velmagicxSize,
       backgroundColor,
       beautyLevel,
+      photoType: params.photo_type || 'id_card',
+      inferredPreset,
+      effectiveComposition,
     });
 
     const outputFormat = params.output?.format || 'png';
@@ -102,7 +132,7 @@ export async function processIDPhotoWithVeLMagicX(
       layout: requestedLayout,
       output_format: outputFormat,
       zoom: params.portrait?.zoom,
-      composition: params.portrait?.composition,
+      composition: effectiveComposition,
     });
 
     logger.info('Raw VeLMagicX ID photo response received', {
@@ -135,6 +165,7 @@ export async function processIDPhotoWithVeLMagicX(
       complianceScore: result.compliance_score,
       outputFormat,
       resultSize: saved.size,
+      inferredPreset,
     });
 
     return {
@@ -153,6 +184,7 @@ export async function processIDPhotoWithVeLMagicX(
       error: error?.message || 'Unknown error',
       stack: error?.stack || null,
       sizeType: params.size?.type,
+      photoType: params.photo_type,
       backgroundColor: params.background?.color,
       outputFormat: params.output?.format,
     });
