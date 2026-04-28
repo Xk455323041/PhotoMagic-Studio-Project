@@ -22,7 +22,11 @@ function textResponse(message: string, status: number, extraHeaders: Record<stri
 function getBackendBaseUrl(env: Env): string {
   const configured = typeof env.BACKEND_API_URL === "string" ? env.BACKEND_API_URL.trim() : ""
   const base = configured || "http://101.32.246.47:3002"
-  return base.replace(/\/$/, "")
+
+  return base
+    .replace(/\/$/, "")
+    .replace(/\/api\/v1$/i, "")
+    .replace(/\/api$/i, "")
 }
 
 function applyCorsHeaders(headers: Headers) {
