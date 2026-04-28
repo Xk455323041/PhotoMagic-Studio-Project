@@ -107,8 +107,8 @@ app.use('*', (req, res) => {
 app.use(errorHandler);
 
 // 启动服务器
-app.listen(PORT, () => {
-  logger.info(`🚀 PhotoMagic Backend Service running on port ${PORT}`);
+app.listen(PORT, env.host, () => {
+  logger.info(`🚀 PhotoMagic Backend Service running on ${env.host}:${PORT}`);
   logger.info(`📊 Environment: ${env.nodeEnv}`);
-  logger.info(`🔗 API Base: http://localhost:${PORT}/api/v1`);
+  logger.info(`🔗 API Base: http://${env.host}:${PORT}/api/v1`);
 });
