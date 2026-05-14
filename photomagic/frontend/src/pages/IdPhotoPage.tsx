@@ -439,13 +439,15 @@ const IdPhotoPage: React.FC = () => {
             <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center mb-4 overflow-hidden">
               {processedResult ? (
                 <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-center p-4">
-                    <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
-                      <CheckCircle className="h-8 w-8 text-green-600" />
-                    </div>
-                    <p className="font-medium text-gray-900">证件照已生成</p>
-                    <p className="text-sm text-gray-600">点击下方按钮下载</p>
-                  </div>
+                  <img
+                    src={processedResult.url}
+                    alt="证件照"
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      console.error('[IdPhotoPage] 图片加载失败:', e);
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
                 </div>
               ) : uploadedFile ? (
                 <div className="text-center p-4">

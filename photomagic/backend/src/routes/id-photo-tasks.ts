@@ -23,7 +23,9 @@ router.post('/', async (req, res, next) => {
     logger.info('Received async ID photo task request', {
       fileId: file_id,
       hasParameters: !!parameters,
-      parameterKeys: parameters ? Object.keys(parameters) : []
+      parameterKeys: parameters ? Object.keys(parameters) : [],
+      businessType: parameters?.business_type || null,
+      sizeType: parameters?.size?.type || null,
     });
 
     const task = await createIDPhotoTask(file_id, (parameters || {}) as IDPhotoParams);
@@ -80,6 +82,8 @@ router.get('/:taskId', async (req, res, next) => {
             }
           : undefined,
         error: task.error,
+        error_code: task.errorCode,
+        error_details: task.errorDetails,
       }
     };
 

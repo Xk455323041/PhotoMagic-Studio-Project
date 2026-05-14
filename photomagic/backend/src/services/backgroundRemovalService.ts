@@ -5,10 +5,11 @@ import logger from '../config/logger';
 import axios from 'axios';
 import env from '../config/env';
 import fs from 'fs';
+import { velmagicxService } from './velmagicxService';
 
 /**
  * 背景移除服务
- * 目前使用模拟实现，实际使用时可以接入Remove.bg API或本地AI模型
+ * 优先走火山引擎 VeLMagicX 官方 SDK 链路；若该链路未开通或返回明确错误，再降级到本地兜底实现。
  */
 export async function processBackgroundRemoval(
   fileId: string,
@@ -62,7 +63,66 @@ export async function processBackgroundRemoval(
       rgbaData[j + 3] = isBackground ? 0 : 255; // 背景透明
     }
 
-    // 处理背景颜色
+    // 优先走 VeLMagicX 官方 SDK 人像分割/抠图链路
+    try {
+      const inputBuffer = await fs.promises.readFile(filePath);
+      const segmentation = await velmagicxService.humanSegmentation(inputBuffer.toString('base64'), {
+        return_foreground: true,
+        background_color: mergedParams.bg_color,
+      });
+
+      if (!segmentation.foreground) {
+        throw new Error('VeLMagicX humanSegmentation returned empty foreground');
+      }
+
+      let processedImage = sharp(Buffer.from(segmentation.foreground, 'base64'));
+      if (mergedParams.edge_smoothness !== 'low') {
+        processedImage = processedImage.blur(mergedParams.edge_smoothness === 'high' ? 1 : 0.5);
+      }
+
+      let outputBuffer: Buffer;
+      const format = mergedParams.format || 'png';
+      if (format === 'jpg') {
+        outputBuffer = await processedImage.jpeg({ quality: 90 }).toBuffer();
+      } else if (format === 'webp') {
+        outputBuffer = await processedImage.webp({ quality: 90 }).toBuffer();
+      } else {
+        outputBuffer = await processedImage.png().toBuffer();
+      }
+
+      const result = await saveProcessingResult(outputBuffer, format);
+      const processingTime = (Date.now() - startTime) / 1000;
+
+      logger.info('Background removal completed via VeLMagicX SDK', {
+        fileId,
+        resultId: result.resultId,
+        processingTime,
+        size: result.size,
+      });
+
+      return {
+        resultId: result.resultId,
+        url: result.url,
+        expiresAt: result.expiresAt,
+        metadata: {
+          processingTime,
+          originalSize: metadata.size,
+          resultSize: result.size,
+          format,
+          dimensions: {
+            width: metadata.width || info.width,
+            height: metadata.height || info.height,
+          },
+        },
+      };
+    } catch (sdkError: any) {
+      logger.warn('VeLMagicX SDK background removal unavailable, fallback to local implementation', {
+        fileId,
+        error: sdkError?.message || 'unknown error',
+      });
+    }
+
+    // 本地兜底实现
     let processedImage = sharp(rgbaData, {
       raw: {
         width: info.width,

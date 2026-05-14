@@ -16,6 +16,8 @@ export interface IDPhotoTaskRecord {
   completedAt?: string;
   result?: ProcessingResult;
   error?: string;
+  errorCode?: string;
+  errorDetails?: Record<string, any>;
 }
 
 const tasks = new Map<string, IDPhotoTaskRecord>();
@@ -103,6 +105,8 @@ async function runIDPhotoTask(taskId: string): Promise<void> {
     task.status = 'failed';
     task.completedAt = new Date().toISOString();
     task.error = error?.message || '证件照处理失败';
+    task.errorCode = error?.code || 'PROCESSING_FAILED';
+    task.errorDetails = error?.details || undefined;
     tasks.set(taskId, task);
 
     logger.error('Async ID photo task failed', {
@@ -110,6 +114,8 @@ async function runIDPhotoTask(taskId: string): Promise<void> {
       fileId: task.fileId,
       durationMs: Date.now() - start,
       error: error?.message || 'Unknown error',
+      errorCode: error?.code || 'PROCESSING_FAILED',
+      errorDetails: error?.details || null,
       stack: error?.stack || null,
     });
   }

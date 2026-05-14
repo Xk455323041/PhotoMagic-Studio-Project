@@ -23,6 +23,9 @@ export interface EnvConfig {
   velmagicxServiceId: string
   velmagicxRegion: string
   velmagicxEndpoint: string
+  velmagicxPublicDomain: string
+  velmagicxSourceTemplate: string
+  velmagicxProcessTemplate: string
 
   // 文件存储配置
   storageType: 'local' | 's3'
@@ -63,6 +66,9 @@ const env: EnvConfig = {
   velmagicxServiceId: process.env.VELMAGICX_SERVICE_ID || '',
   velmagicxRegion: process.env.VELMAGICX_REGION || 'cn-north-1',
   velmagicxEndpoint: process.env.VELMAGICX_ENDPOINT || '',
+  velmagicxPublicDomain: process.env.VELMAGICX_PUBLIC_DOMAIN || '',
+  velmagicxSourceTemplate: process.env.VELMAGICX_SOURCE_TEMPLATE || '',
+  velmagicxProcessTemplate: process.env.VELMAGICX_PROCESS_TEMPLATE || '',
 
   storageType: (process.env.STORAGE_TYPE as EnvConfig['storageType']) || 'local',
   uploadDir: process.env.UPLOAD_DIR || './uploads',

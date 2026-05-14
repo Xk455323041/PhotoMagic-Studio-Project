@@ -1,6 +1,20 @@
 import sharp from 'sharp';
+import { imagex } from '@volcengine/openapi';
 import env from '../config/env';
 import logger from '../config/logger';
+import { getFilePath, saveProcessingResult } from './fileService';
+
+class VeLMagicXCapabilityError extends Error {
+  public readonly code: string;
+  public readonly details?: Record<string, any>;
+
+  constructor(message: string, code = 'VELMAGICX_OFFICIAL_CALL_FAILED', details?: Record<string, any>) {
+    super(message);
+    this.name = 'VeLMagicXCapabilityError';
+    this.code = code;
+    this.details = details;
+  }
+}
 
 /**
  * veImageX / 火山引擎接入适配层（第一阶段骨架）
@@ -8,7 +22,7 @@ import logger from '../config/logger';
  * 当前状态：
  * - 已停止使用错误的“自定义 endpoint + Action + 手写 HMAC”调用方式。
  * - 后续应切换到官方 Node.js SDK（@volcengine/openapi）或其等价官方接入方式。
- * - 在未完成正式 SDK 接入前，证件照能力先走本地 fallback，避免异步链路继续阻塞。
+ * - 证件照当前优先走官方 SDK 路线；官方失败时直接透出真实错误，不再默认静默 fallback。
  */
 export class VeLMagicXService {
   private accessKeyId: string;
@@ -16,7 +30,11 @@ export class VeLMagicXService {
   private serviceId: string;
   private region: string;
   private endpoint: string;
+  private publicDomain: string;
+  private sourceTemplate: string;
+  private processTemplate: string;
   private secretMode: 'raw' | 'base64-decoded';
+  private imagexService: imagex.ImagexService;
 
   private readonly sizePresetMap: Record<'1inch' | '2inch' | 'passport', { widthMm: number; heightMm: number }> = {
     '1inch': { widthMm: 25, heightMm: 35 },
@@ -49,9 +67,17 @@ export class VeLMagicXService {
     this.serviceId = env.velmagicxServiceId;
     this.region = env.velmagicxRegion;
     this.endpoint = env.velmagicxEndpoint;
+    this.publicDomain = env.velmagicxPublicDomain.trim();
+    this.sourceTemplate = env.velmagicxSourceTemplate.trim();
+    this.processTemplate = env.velmagicxProcessTemplate.trim();
+    this.imagexService = new imagex.ImagexService({
+      serviceName: 'imagex',
+      region: this.region,
+      host: this.endpoint || 'imagex.volcengineapi.com',
+    });
 
     logger.info(
-      `[VeLMagicXDebug] init provider=veImageX region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'} secretMode=${this.secretMode}`
+      `[VeLMagicXDebug] init provider=veImageX region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'} publicDomain=${this.publicDomain || 'auto-service-domain'} sourceTemplate=${this.sourceTemplate || 'none'} processTemplate=${this.processTemplate || 'none'} secretMode=${this.secretMode}`
     );
   }
 
@@ -60,24 +86,16 @@ export class VeLMagicXService {
       return { value: raw, mode: 'raw' };
     }
 
-    const trimmed = raw.trim();
-    const base64Pattern = /^[A-Za-z0-9+/=]+$/;
-    const looksLikeBase64 = trimmed.length % 4 === 0 && base64Pattern.test(trimmed);
+    return { value: raw.trim(), mode: 'raw' };
+  }
 
-    if (!looksLikeBase64) {
-      return { value: trimmed, mode: 'raw' };
+  private configureImagexClient(): void {
+    this.imagexService.setAccessKeyId(this.accessKeyId);
+    this.imagexService.setSecretKey(this.secretAccessKey);
+    this.imagexService.setRegion(this.region);
+    if (this.endpoint) {
+      this.imagexService.setHost(this.endpoint);
     }
-
-    try {
-      const decoded = Buffer.from(trimmed, 'base64').toString('utf8').trim();
-      if (decoded && /^[A-Za-z0-9_-]+$/.test(decoded)) {
-        return { value: decoded, mode: 'base64-decoded' };
-      }
-    } catch (error: any) {
-      logger.warn(`[VeLMagicXDebug] secret decode failed error=${error?.message || 'unknown error'}`);
-    }
-
-    return { value: trimmed, mode: 'raw' };
   }
 
   private ensureConfigured(): void {
@@ -94,6 +112,27 @@ export class VeLMagicXService {
     throw new Error(
       `veImageX 官方 Node SDK 接入尚未完成，当前已停用旧的自定义 endpoint/签名调用方式；请先完成 ${capability} 能力到官方 SDK 的映射后再调用。`
     );
+  }
+
+  private buildOfficialSdkError(error: any, context: Record<string, any> = {}): VeLMagicXCapabilityError {
+    const rawCode = error?.code || error?.Code || error?.ResponseMetadata?.Error?.Code || error?.metadata?.code;
+    const rawMessage = error?.message || error?.Message || error?.msg || 'unknown official sdk error';
+    const requestId = error?.requestId || error?.RequestId || error?.ResponseMetadata?.RequestId || error?.metadata?.requestId;
+      const details = {
+      ...context,
+      code: rawCode || 'UNKNOWN',
+      requestId: requestId || undefined,
+      httpStatus: error?.statusCode || error?.status || error?.$metadata?.httpStatusCode || undefined,
+      message: rawMessage,
+      publicDomain: this.publicDomain || undefined,
+    };
+
+    const isForbiddenAddon = String(rawCode || '').includes('Forbidden.Addon') || String(rawMessage || '').includes('Forbidden.Addon');
+    const userMessage = isForbiddenAddon
+      ? `veImageX 官方能力未开通：${rawCode || 'Forbidden.Addon'}${requestId ? `（requestId=${requestId}）` : ''}。请先在火山引擎控制台为 serviceId=${this.serviceId} 开通人像分割/抠图相关附加组件。`
+      : `veImageX 官方调用失败：${rawCode || 'UNKNOWN'} - ${rawMessage}${requestId ? `（requestId=${requestId}）` : ''}`;
+
+    return new VeLMagicXCapabilityError(userMessage, rawCode || 'VELMAGICX_OFFICIAL_CALL_FAILED', details);
   }
 
   private hexToRgb(color: string): { r: number; g: number; b: number } {
@@ -213,6 +252,141 @@ export class VeLMagicXService {
     };
   }
 
+  private async uploadBase64ImageToImagex(
+    imageBase64: string,
+    format: 'jpg' | 'png' = 'png'
+  ): Promise<{ storeUri: string }> {
+    this.configureImagexClient();
+
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    const buffer = Buffer.from(imageBase64, 'base64');
+
+    const uploadRes = await this.imagexService.UploadImages(
+      {
+        ApplyParams: {
+          ServiceId: this.serviceId,
+          UploadNum: 1,
+        },
+        ContentTypes: [mimeType],
+      },
+      [buffer]
+    );
+
+    const storeUri = uploadRes?.Result?.Results?.[0]?.Uri;
+    if (!storeUri) {
+      throw new Error('veImageX UploadImages succeeded but no store uri was returned');
+    }
+
+    logger.info('[VeLMagicXDebug] imagex-upload-complete', {
+      storeUri,
+      mimeType,
+      size: buffer.length,
+    });
+
+    return { storeUri };
+  }
+
+  private async getDefaultDomain(): Promise<string> {
+    if (this.publicDomain) {
+      return this.publicDomain;
+    }
+
+    this.configureImagexClient();
+
+    const domainsRes = await this.imagexService.GetServiceDomains({
+      ServiceId: this.serviceId,
+    });
+
+    const domains = domainsRes?.Result || [];
+    const preferred = domains.find((item: any) => item?.is_default && item?.domain) || domains.find((item: any) => item?.domain);
+    const domain = preferred?.domain;
+
+    if (!domain) {
+      throw new Error('veImageX GetServiceDomains returned no accessible domain and VELMAGICX_PUBLIC_DOMAIN is empty');
+    }
+
+    return domain;
+  }
+
+  private async getResourceUrl(storeUri: string, format: 'jpg' | 'png' = 'png'): Promise<string> {
+    this.configureImagexClient();
+
+    const domain = await this.getDefaultDomain();
+    const tpl = this.processTemplate;
+    const requestData: any = {
+      ServiceId: this.serviceId,
+      Domain: domain,
+      URI: storeUri,
+      Proto: 'https',
+      Format: format === 'jpg' ? 'jpeg' : 'png',
+    };
+
+    if (tpl) {
+      requestData.Tpl = tpl;
+    }
+
+    const resourceRes = await this.imagexService.GetResourceURL(requestData);
+
+    logger.info('[VeLMagicXDebug] imagex-resource-url-raw-response', {
+      domain,
+      storeUri,
+      tpl,
+      responseMetadata: resourceRes?.ResponseMetadata || null,
+      result: resourceRes?.Result || null,
+    });
+
+    const apiError = resourceRes?.ResponseMetadata?.Error;
+    if (apiError) {
+      throw new Error(`veImageX GetResourceURL error: ${apiError.Code || 'UNKNOWN'} - ${apiError.Message || 'unknown error'}`);
+    }
+
+    const url = resourceRes?.Result?.URL || resourceRes?.Result?.ObjURL || resourceRes?.Result?.CompactURL || resourceRes?.Result?.ObjCompactURL;
+    if (!url) {
+      throw new Error('veImageX GetResourceURL returned no URL');
+    }
+
+    return url;
+  }
+
+  private async segmentHumanPortrait(
+    imageBase64: string,
+    format: 'jpg' | 'png' = 'png'
+  ): Promise<{ segmentedUrl: string; segmentedStoreUri: string }> {
+    const { storeUri } = await this.uploadBase64ImageToImagex(imageBase64, format);
+    this.configureImagexClient();
+
+    const segmentRes = await this.imagexService.GetSegmentImage({
+      ServiceId: this.serviceId,
+      Class: 'humanv2',
+      OutFormat: 'png',
+      Refine: true,
+      StoreUri: storeUri,
+      TransBg: false,
+    });
+
+    logger.info('[VeLMagicXDebug] imagex-segmentation-raw-response', {
+      inputStoreUri: storeUri,
+      responseMetadata: segmentRes?.ResponseMetadata || null,
+      result: segmentRes?.Result || null,
+      rawResponse: segmentRes || null,
+    });
+
+    const segmentedStoreUri = segmentRes?.Result?.ResUri;
+    if (!segmentedStoreUri) {
+      throw new Error('veImageX GetSegmentImage returned no ResUri');
+    }
+
+    const segmentedUrl = await this.getResourceUrl(segmentedStoreUri, 'png');
+
+    logger.info('[VeLMagicXDebug] imagex-segmentation-complete', {
+      inputStoreUri: storeUri,
+      segmentedStoreUri,
+      segmentedUrl,
+    });
+
+    return { segmentedUrl, segmentedStoreUri };
+  }
+
   private async buildLayoutPhoto(
     idPhotoBase64: string,
     options: {
@@ -282,10 +456,60 @@ export class VeLMagicXService {
     mask?: string;
     score: number;
   }> {
-    void imageBase64;
-    void options;
     this.ensureConfigured();
-    this.sdkMigrationError('humanSegmentation');
+
+    const requestedFormat: 'png' = 'png';
+
+    try {
+      logger.info(
+        `[VeLMagicXDebug] official-sdk-attempt capability=humanSegmentation region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'}`
+      );
+
+      const { segmentedUrl, segmentedStoreUri } = await this.segmentHumanPortrait(imageBase64, requestedFormat);
+      const segmentedResponse = await fetch(segmentedUrl);
+      if (!segmentedResponse.ok) {
+        throw new Error(`failed to fetch segmented image status=${segmentedResponse.status}`);
+      }
+
+      const segmentedBuffer = Buffer.from(await segmentedResponse.arrayBuffer());
+      let output = sharp(segmentedBuffer).ensureAlpha();
+
+      if (options.background_color && options.background_color !== 'transparent') {
+        output = output.flatten({ background: this.normalizeBackgroundColor(options.background_color) as any });
+      }
+
+      const foregroundBuffer = await output.png().toBuffer();
+      const foregroundBase64 = foregroundBuffer.toString('base64');
+
+      logger.info('[VeLMagicXDebug] official-sdk-complete', {
+        capability: 'humanSegmentation',
+        segmentedStoreUri,
+        segmentedUrl,
+        returnMask: !!options.return_mask,
+        returnForeground: options.return_foreground !== false,
+      });
+
+      return {
+        foreground: options.return_foreground === false ? undefined : foregroundBase64,
+        mask: undefined,
+        score: 0.9,
+      };
+    } catch (error: any) {
+      const officialError = this.buildOfficialSdkError(error, {
+        capability: 'humanSegmentation',
+        region: this.region,
+        serviceId: this.serviceId,
+        endpoint: this.endpoint || 'auto-sdk',
+      });
+
+      logger.warn('[VeLMagicXDebug] official-sdk-failed', {
+        code: officialError.code,
+        message: officialError.message,
+        details: officialError.details,
+      });
+
+      throw officialError;
+    }
   }
 
   async imageEnhancement(
@@ -337,11 +561,66 @@ export class VeLMagicXService {
     result_image: string;
     composition_score: number;
   }> {
-    void foregroundBase64;
-    void backgroundBase64;
-    void options;
     this.ensureConfigured();
-    this.sdkMigrationError('backgroundReplacement');
+
+    try {
+      logger.info(
+        `[VeLMagicXDebug] official-sdk-attempt capability=backgroundReplacement region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'}`
+      );
+
+      const segmentation = await this.humanSegmentation(foregroundBase64, {
+        return_foreground: true,
+        background_color: 'transparent',
+      });
+
+      if (!segmentation.foreground) {
+        throw new Error('humanSegmentation returned empty foreground');
+      }
+
+      const foreground = sharp(Buffer.from(segmentation.foreground, 'base64')).ensureAlpha();
+      const background = sharp(Buffer.from(backgroundBase64, 'base64')).rotate();
+
+      const [fgMeta, bgMeta] = await Promise.all([foreground.metadata(), background.metadata()]);
+      if (!fgMeta.width || !fgMeta.height || !bgMeta.width || !bgMeta.height) {
+        throw new Error('unable to resolve foreground/background dimensions');
+      }
+
+      const scale = Math.max(0.1, Math.min(3, options.scale || 1));
+      const resizedForeground = await foreground
+        .resize(Math.max(1, Math.round(fgMeta.width * scale)))
+        .png()
+        .toBuffer();
+
+      const resizedMeta = await sharp(resizedForeground).metadata();
+      const left = Math.round(((bgMeta.width - (resizedMeta.width || 0)) * (options.position?.x ?? 0.5)));
+      const top = Math.round(((bgMeta.height - (resizedMeta.height || 0)) * (options.position?.y ?? 0.5)));
+
+      const resultBuffer = await background
+        .ensureAlpha()
+        .composite([{ input: resizedForeground, left: Math.max(0, left), top: Math.max(0, top) }])
+        .png()
+        .toBuffer();
+
+      return {
+        result_image: resultBuffer.toString('base64'),
+        composition_score: 0.85,
+      };
+    } catch (error: any) {
+      const officialError = this.buildOfficialSdkError(error, {
+        capability: 'backgroundReplacement',
+        region: this.region,
+        serviceId: this.serviceId,
+        endpoint: this.endpoint || 'auto-sdk',
+      });
+
+      logger.warn('[VeLMagicXDebug] official-sdk-failed', {
+        code: officialError.code,
+        message: officialError.message,
+        details: officialError.details,
+      });
+
+      throw officialError;
+    }
   }
 
   async idPhotoProcessing(
@@ -370,31 +649,60 @@ export class VeLMagicXService {
     void options.clothing_template;
     this.ensureConfigured();
 
-    logger.info(
-      `[VeLMagicXDebug] local-id-photo-fallback capability=idPhotoProcessing region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'}`
-    );
+    const requestedFormat = options.output_format === 'jpg' ? 'jpg' : 'png';
 
-    const { idPhotoBase64, width, height } = await this.composeIdPhoto(imageBase64, options);
-    const layoutPhotoBase64 = await this.buildLayoutPhoto(idPhotoBase64, {
-      layout: options.layout,
-      output_format: options.output_format,
-    });
+    try {
+      logger.info(
+        `[VeLMagicXDebug] official-sdk-attempt capability=idPhotoProcessing region=${this.region} serviceId=${this.serviceId} endpoint=${this.endpoint || 'auto-sdk'}`
+      );
 
-    logger.info('[VeLMagicXDebug] local-id-photo-fallback-complete', {
-      width,
-      height,
-      hasLayoutPhoto: !!layoutPhotoBase64,
-      beautyLevel: options.beauty_level || 0,
-      zoom: options.zoom || 1,
-      composition: options.composition || {},
-      effectivePreset: options.composition?.preset,
-    });
+      const { segmentedUrl, segmentedStoreUri } = await this.segmentHumanPortrait(imageBase64, requestedFormat);
+      const segmentedResponse = await fetch(segmentedUrl);
+      if (!segmentedResponse.ok) {
+        throw new Error(`failed to fetch segmented image status=${segmentedResponse.status}`);
+      }
+      const segmentedBuffer = Buffer.from(await segmentedResponse.arrayBuffer());
+      const segmentedBase64 = segmentedBuffer.toString('base64');
 
-    return {
-      id_photo: idPhotoBase64,
-      layout_photo: layoutPhotoBase64,
-      compliance_score: 0.72,
-    };
+      const { idPhotoBase64, width, height } = await this.composeIdPhoto(segmentedBase64, options);
+      const layoutPhotoBase64 = await this.buildLayoutPhoto(idPhotoBase64, {
+        layout: options.layout,
+        output_format: options.output_format,
+      });
+
+      logger.info('[VeLMagicXDebug] official-sdk-complete', {
+        width,
+        height,
+        segmentedStoreUri,
+        segmentedUrl,
+        hasLayoutPhoto: !!layoutPhotoBase64,
+        beautyLevel: options.beauty_level || 0,
+        zoom: options.zoom || 1,
+        composition: options.composition || {},
+        effectivePreset: options.composition?.preset,
+      });
+
+      return {
+        id_photo: idPhotoBase64,
+        layout_photo: layoutPhotoBase64,
+        compliance_score: 0.9,
+      };
+    } catch (error: any) {
+      const officialError = this.buildOfficialSdkError(error, {
+        capability: 'idPhotoProcessing',
+        region: this.region,
+        serviceId: this.serviceId,
+        endpoint: this.endpoint || 'auto-sdk',
+      });
+
+      logger.warn('[VeLMagicXDebug] official-sdk-failed', {
+        code: officialError.code,
+        message: officialError.message,
+        details: officialError.details,
+      });
+
+      throw officialError;
+    }
   }
 
   async getServiceStatus(): Promise<{

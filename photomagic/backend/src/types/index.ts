@@ -48,6 +48,11 @@ export interface BackgroundRemovalParams {
 // 证件照参数
 export interface IDPhotoParams {
   photo_type?: 'id_card' | 'passport' | 'visa' | 'driver_license' | 'custom';
+  /**
+   * 业务语义优先级高于尺寸规则。
+   * 前端/调用方应优先传 business_type，size 作为辅助尺寸信息。
+   */
+  business_type?: 'resume' | 'exam_registration' | 'id_card' | 'passport' | 'visa' | 'driver_license' | 'generic';
   background?: {
     type: 'solid' | 'gradient' | 'custom_image';
     color?: string;
@@ -59,6 +64,10 @@ export interface IDPhotoParams {
     custom_image?: string;
   };
   size?: {
+    /**
+     * 尺寸为辅助信息。
+     * 当 business_type 已提供时，后端优先按 business_type 命中规则，再使用 size 决定细节与兜底。
+     */
     type: '大一寸' | '小一寸' | '大两寸' | '小两寸' | '标准一寸' | '标准两寸' | 'custom';
     width_mm?: number;
     height_mm?: number;
